@@ -1,0 +1,76 @@
+{{ if .Values.controller.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  # name: dask-controller
+  # namespace: metacontroller
+  name: dask-controller-{{ template "dask-operator.name" . }}-{{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: dask-controller-{{ template "dask-operator.name" . }}
+    app.kubernetes.io/instance: "{{ .Release.Name }}"
+    app.kubernetes.io/managed-by: "{{ .Release.Service }}"
+    helm.sh/chart: "{{ template "dask-operator.chart" . }}"
+spec:
+  selector:
+    app.kubernetes.io/name:  dask-controller-{{ template "dask-operator.name" . }}
+    app.kubernetes.io/instance: "{{ .Release.Name }}"
+  type: ClusterIP
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: http8080
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dask-controller-{{ template "dask-operator.name" . }}-{{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  # namespace: metacontroller
+  labels:
+    app.kubernetes.io/name: dask-controller-{{ template "dask-operator.name" . }}
+    app.kubernetes.io/instance: "{{ .Release.Name }}"
+    app.kubernetes.io/managed-by: "{{ .Release.Service }}"
+    helm.sh/chart: "{{ template "dask-operator.chart" . }}"
+
+spec:
+  replicas: {{ .Values.controller.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dask-controller-{{ template "dask-operator.name" . }}
+      app.kubernetes.io/instance: "{{ .Release.Name }}"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dask-controller-{{ template "dask-operator.name" . }}
+        app.kubernetes.io/instance: "{{ .Release.Name }}"
+        app.kubernetes.io/managed-by: "{{ .Release.Service }}"
+        helm.sh/chart: "{{ template "dask-operator.chart" . }}"
+    spec:
+      containers:
+      - name: controller
+        image: "{{ .Values.controller.image.registry }}/{{ .Values.controller.image.image }}:{{ .Values.controller.image.tag }}"
+        imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+        command: ["dask-controller"]
+        ports:
+        - name: http8080
+          containerPort: 8080
+        resources:
+{{ toYaml .Values.controller.resources | indent 10 }}
+{{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+{{- end }}
+
+{{ end }}

@@ -1,0 +1,24 @@
+# Default values for dask-operator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# default to adding in chart tests
+helmTests: true
+
+controller:
+  enabled: true
+  replicas: 1
+  image:
+    registry: piersharding
+    image: dask-operator
+    tag: latest
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 200m     # 200m = 0.2 CPU
+      memory: 256Mi # 256Mi = 0.25 GB mem
+nodeSelector: {}
+
+affinity: {}
+
+tolerations: []

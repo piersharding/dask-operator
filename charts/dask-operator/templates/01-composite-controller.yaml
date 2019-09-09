@@ -1,0 +1,32 @@
+{{ if .Values.controller.enabled }}
+---
+apiVersion: metacontroller.k8s.io/v1alpha1
+kind: CompositeController
+metadata:
+  name: dask-controller
+spec:
+  generateSelector: true
+  parentResource:
+    apiVersion: piersharding.com/v1
+    resource: dasks
+  childResources:
+    # - apiVersion: v1
+    #   resource: configmaps
+    # - apiVersion: v1
+    #   resource: serviceaccounts
+    # - apiVersion: rbac.authorization.k8s.io/v1
+    #   resource: roles
+    # - apiVersion: rbac.authorization.k8s.io/v1
+    #   resource: rolebindings
+    - apiVersion: apps/v1
+      resource: statefulsets
+    - apiVersion: apps/v1
+      resource: deployments
+    # - apiVersion: batch/v1
+    #   resource: jobs
+  hooks:
+    sync:
+      webhook:
+        url: http://dask-controller-{{ template "dask-operator.name" . }}-{{ .Release.Name }}.{{ .Release.Namespace }}/sync
+
+{{ end }}
