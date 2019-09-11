@@ -1,4 +1,4 @@
-
+DOCKERFILE ?= Dockerfile ## Which Dockerfile to use for build
 OPERATOR := dask-operator
 KUBE_NAMESPACE ?= "default"
 KUBECTL_VERSION ?= 1.14.1
@@ -11,8 +11,9 @@ CI_REPOSITORY ?= piersharding
 IMAGE ?= $(CI_REPOSITORY)/$(OPERATOR)
 TAG ?= latest
 REPLICAS ?= 2
+INGRESS_HOST ?= notebook.dask.local scheduler.dask.local
 
-.PHONY: k8s show lint deploy delete logs describe namespace test clean metalogs help
+.PHONY: k8s show lint deploy delete logs describe namespace test clean metalogs localip help
 .DEFAULT_GOAL := help
 
 # define overrides for above variables in here
@@ -32,16 +33,16 @@ k8s: ## Which kubernetes are we connected to
 	@helm plugin list
 
 check: ## Lint check Operator
-	env | grep GO
-	golint .
-	dep ensure
-	go build -o ./$(OPERATOR)
+	golint -set_exit_status .
 
-build: check ## build image
+build: clean check ## build Operator
+	GO111MODULE=on go build -o ./$(OPERATOR)
+
+image: ## build image
 	docker build \
-	  -t $(OPERATOR):latest -f Dockerfile .
+	  -t $(OPERATOR):latest -f $(DOCKERFILE) .
 
-push: build ## push image
+push: image ## push image
 	docker tag $(OPERATOR):latest $(IMAGE):$(TAG)
 	docker push $(IMAGE):$(TAG)
 
@@ -98,11 +99,14 @@ metalogs: ## show metacontroller POD logs
 # 	kubectl get pods -l job-name=mpioperator-test-mpi-launcher | \
 # 	grep Completed | cut -f1 -d" " | xargs kubectl logs || true
 
-# test-clean:  ## clean down test
-# 	kubectl delete -f mpi-test-replicas.yaml -n $(KUBE_NAMESPACE) || true
-# 	sleep 1
+clean:  ## clean before build
+	rm -f ./$(OPERATOR)
 
-clean: test-clean delete  ## Clean all
+test-clean:  ## clean down test
+	kubectl delete -f mpi-test-replicas.yaml -n $(KUBE_NAMESPACE) || true
+	sleep 1
+
+cleanall: clean test-clean delete  ## Clean all
 
 redeploy: clean deploy  ## redeploy operator
 
@@ -195,6 +199,15 @@ kubectl_dependencies: ## Utility target to install K8s dependencies
 	@kubectl config get-contexts
 	@echo -e "\nkubectl version:"
 	@kubectl version
+
+localip:  ## set local Minikube IP in /etc/hosts file for Ingress $(INGRESS_HOST)
+	@new_ip=`minikube ip` && \
+	existing_ip=`grep $(INGRESS_HOST) /etc/hosts || true` && \
+	echo "New IP is: $${new_ip}" && \
+	echo "Existing IP: $${existing_ip}" && \
+	if [ -z "$${existing_ip}" ]; then echo "$${new_ip} $(INGRESS_HOST)" | sudo tee -a /etc/hosts; \
+	else sudo perl -i -ne "s/\d+\.\d+.\d+\.\d+/$${new_ip}/ if /$(INGRESS_HOST)/; print" /etc/hosts; fi && \
+	echo "/etc/hosts is now: " `grep $(INGRESS_HOST) /etc/hosts`
 
 help:  ## show this help.
 	@echo "make targets:"

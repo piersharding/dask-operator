@@ -22,8 +22,74 @@ spec:
     port: 80
     protocol: TCP
     targetPort: http8080
----
 
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: dask-controller-{{ template "dask-operator.name" . }}
+    app.kubernetes.io/instance: "{{ .Release.Name }}"
+    app.kubernetes.io/managed-by: "{{ .Release.Service }}"
+    helm.sh/chart: "{{ template "dask-operator.chart" . }}"
+  name: dask-controller-{{ template "dask-operator.name" . }}-{{ .Release.Name }}
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - pods
+      - deployments
+    verbs:
+      - list
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - "extensions"
+      - "networking.k8s.io"
+    resources:
+      - ingresses
+    verbs:
+      - get
+      - list
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: dask-controller-{{ template "dask-operator.name" . }}
+    app.kubernetes.io/instance: "{{ .Release.Name }}"
+    app.kubernetes.io/managed-by: "{{ .Release.Service }}"
+    helm.sh/chart: "{{ template "dask-operator.chart" . }}"
+  name: dask-controller-{{ template "dask-operator.name" . }}-{{ .Release.Name }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: dask-controller-{{ template "dask-operator.name" . }}
+    app.kubernetes.io/instance: "{{ .Release.Name }}"
+    app.kubernetes.io/managed-by: "{{ .Release.Service }}"
+    helm.sh/chart: "{{ template "dask-operator.chart" . }}"
+  name: dask-controller-{{ template "dask-operator.name" . }}-{{ .Release.Name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dask-controller-{{ template "dask-operator.name" . }}-{{ .Release.Name }}
+subjects:
+- kind: ServiceAccount
+  name: dask-controller-{{ template "dask-operator.name" . }}-{{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -50,11 +116,15 @@ spec:
         app.kubernetes.io/managed-by: "{{ .Release.Service }}"
         helm.sh/chart: "{{ template "dask-operator.chart" . }}"
     spec:
+      serviceAccountName: dask-controller-{{ template "dask-operator.name" . }}-{{ .Release.Name }}
       containers:
       - name: controller
         image: "{{ .Values.controller.image.registry }}/{{ .Values.controller.image.image }}:{{ .Values.controller.image.tag }}"
         imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
-        command: ["dask-controller"]
+        command: ["dask-operator"]
+        env:
+          - name: LOG_LEVEL
+            value: "{{ .Values.controller.logLevel }}"
         ports:
         - name: http8080
           containerPort: 8080

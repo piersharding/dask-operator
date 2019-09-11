@@ -3,27 +3,45 @@ kind: Dask
 metadata:
   name: app-1
 spec:
-  message: Hello, World!
-  daemon: true
-  replicas: 2
-  image: arl:ubuntu18.04
+  # daemon: true
+  jupyter: true
+  replicas: 3
+  # image: arl:ubuntu18.04
+  image: daskdev/dask:latest
+  jupyterIngress: notebook.dask.local 
+  schedulerIngress: scheduler.dask.local 
   imagePullPolicy: IfNotPresent
-  imagePullSecrets:
-    - name: gitlab-registry
-  affinity:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: mpi_job_role
-            operator: In
-            values:
-              - app1-worker
-        topologyKey: kubernetes.io/hostname
-  nodeSelector:
-    kubernetes.io/os: linux
-  tolerations:
-  - key: "key"
-    operator: "Equal"
-    value: "value"
-    effect: "NoSchedule"
+  env:
+    - name: PYTHONPATH
+      value: /arl
+    - name: ARL
+      value: /arl
+  volumes:
+    - hostPath:
+        path: /home/piers/git/private/algorithm-reference-library
+        type: DirectoryOrCreate
+      name: arl
+  volumeMounts:
+    - mountPath: /arl
+      readOnly: false
+      name: arl
+
+  # imagePullSecrets:
+  #   - name: gitlab-registry
+  # affinity:
+  #   podAntiAffinity:
+  #     requiredDuringSchedulingIgnoredDuringExecution:
+  #     - labelSelector:
+  #         matchExpressions:
+  #         - key: mpi_job_role
+  #           operator: In
+  #           values:
+  #             - app1-worker
+  #       topologyKey: kubernetes.io/hostname
+  # nodeSelector:
+  #   kubernetes.io/os: linux
+  # tolerations:
+  # - key: "key"
+  #   operator: "Equal"
+  #   value: "value"
+  #   effect: "NoSchedule"

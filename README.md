@@ -1,117 +1,102 @@
-## R ShinyApp Operator
+## Dask Kubernetes Operator
 
-This controller doesn't do anything useful.
-It's just an example skeleton for writing Metacontroller hooks with Go.
+This operator manages [Dask](https://dask.org/) clusters, consisting of a scheduler, works, and optionally Jupyter Notebook server.
 
-**WARNING**
+**NOTE**
 
-There's a [known issue](https://github.com/GoogleCloudPlatform/metacontroller/issues/76)
-that makes it difficult to produce JSON according to the rules that Metacontroller
-requires if you import the official Go structs for Kubernetes APIs.
-In particular, some fields will always be emitted, even if you never set them,
-which goes against Metacontroller's [apply semantics](https://metacontroller.app/api/apply/).
+Everything is driven by `make`.  Type `make` to get a list of available targets.
 
 ### Prerequisites
 
 * [Install Metacontroller](https://metacontroller.app/guide/install/)
 
-### Install Thing Controller
+### Install The Dask Operator
 
 ```sh
-kubectl apply -f thing-controller.yaml
+make deploy REPLICAS=<n replicas>
+# undo with make delete
 ```
 
-### Create a Thing
+### Launch a Dask resource
 
 ```sh
-kubectl apply -f my-thing.yaml
+cat <<EOF | kubectl apply -f -
+apiVersion: piersharding.com/v1
+kind: Dask
+metadata:
+  name: app-1
+spec:
+  # daemon: true # to force one worker per node
+  jupyter: true # add a Jupyter notebook server to the cluster
+  replicas: 3 # no. of workers
+  image: daskdev/dask:latest
+  jupyterIngress: notebook.dask.local 
+  schedulerIngress: scheduler.dask.local 
+  imagePullPolicy: IfNotPresent
+  # pass any of the following Pod constructs
+  # which will be added to all Pods in the cluster:
+  # env:
+  # volumes:
+  # volumeMounts:
+  # imagePullSecrets:
+  # affinity:
+  # nodeSelector:
+  # tolerations:
+EOF
 ```
 
-Look at the thing:
+Look at the Dask resource, and associated resources - use `-o wide` to get extended details:
 
 ```sh
-kubectl get thing -o yaml
-```
+kubectl  get pod,svc,deployment,ingress,dasks -o wide                                                                            wattle: Wed Sep 18 13:36:14 2019
 
-Look at the thing the thing created:
+NAME                                          READY   STATUS    RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
+pod/dask-scheduler-app-1-66b868c94b-mql7z     1/1     Running   0          31s   172.17.0.7    minikube   <none>           <none>
+pod/dask-worker-app-1-9c45b5c76-blv7s         1/1     Running   0          31s   172.17.0.12   minikube   <none>           <none>
+pod/dask-worker-app-1-9c45b5c76-ppsv2         1/1     Running   0          31s   172.17.0.9    minikube   <none>           <none>
+pod/dask-worker-app-1-9c45b5c76-rlvmh         1/1     Running   0          31s   172.17.0.11   minikube   <none>           <none>
+pod/jupyter-notebook-app-1-7467cdd47d-ms5vw   1/1     Running   0          31s   172.17.0.10   minikube   <none>           <none>
 
-```sh
-kubectl get pod thing-1 -a
-```
+NAME                             TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)             AGE   SELECTOR
+service/dask-scheduler-app-1     ClusterIP   10.108.30.61     <none>        8786/TCP,8787/TCP   31s   app.kubernetes.io/instance=app-1,app.kubernetes.io/name=dask-scheduler
+service/jupyter-notebook-app-1   ClusterIP   10.100.155.117   <none>        8888/TCP            31s   app.kubernetes.io/instance=app-1,app.kubernetes.io/name=jupyter-noteboo
+k
+service/kubernetes               ClusterIP   10.96.0.1        <none>        443/TCP             35d   <none>
 
-Look at what the thing the thing created said:
+NAME                                           READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES                          SELECTOR
+deployment.extensions/dask-scheduler-app-1     1/1     1            1           31s   scheduler    daskdev/dask:latest             app.kubernetes.io/instance=app-1,app.kuber
+netes.io/name=dask-scheduler
+deployment.extensions/dask-worker-app-1        3/3     3            3           31s   worker       daskdev/dask:latest             app.kubernetes.io/instance=app-1,app.kuber
+netes.io/name=dask-worker
+deployment.extensions/jupyter-notebook-app-1   1/1     1            1           31s   jupyter      jupyter/scipy-notebook:latest   app.kubernetes.io/instance=app-1,app.kuber
+netes.io/name=jupyter-notebook
 
-```sh
-kubectl logs thing-1
+NAME                            HOSTS                                      ADDRESS         PORTS   AGE
+ingress.extensions/dask-app-1   notebook.dask.local,scheduler.dask.local   192.168.86.47   80      31s
+
+NAME                          COMPONENTS   SUCCEEDED   AGE   STATE     RESOURCES
+dask.piersharding.com/app-1   3            3           31s   Running   Ingress: dask-app-1 IP: 192.168.86.47, Hosts: http://notebook.dask.local/, http://scheduler.dask.local
+/ status: {"loadBalancer":{"ingress":[{"ip":"192.168.86.47"}]}} - Service: dask-scheduler-app-1 Type: ClusterIP, IP: 10.108.30.61, Ports: scheduler/8786,bokeh/8787 status: {
+"loadBalancer":{}} - Service: jupyter-notebook-app-1 Type: ClusterIP, IP: 10.100.155.117, Ports: jupyter/8888 status: {"loadBalancer":{}}
 ```
 
 ### Clean up
 
 ```sh
-kubectl delete -f thing-controller.yaml
+kubectl delete dask app-1
 ```
 
 ### Building
 
-You don't need to build to run the example above,
-but if you make changes:
+You don't need to build to run the operator,
+but if you would like to make changes:
 
 ```sh
-go get -u github.com/golang/dep/cmd/dep
-dep ensure
-go build -o thing-controller
+make build
 ```
 
-Or just make a new container image:
+Or to make a new container image:
 
 ```sh
-docker build . -t <yourname>/thing-controller
+make image
 ```
-# MPI Operator
-
-Developed with [MetaController](https://metacontroller.app/) and based on https://github.com/everpeace/kube-openmpi and https://github.com/kubeflow/mpi-operator.
-
-This MPI Kubernetes [Operator](https://coreos.com/operators/) provides a Kubernetes native interface to building MPI clusters and running jobs.
-
-## Deploy
-
-First you must have MetaController:
-```shell
-make metacontroller
-```
-
-Next deploy the Operator:
-```shell
-make deploy
-```
-
-## Test
-
-An MPI cluster relies on a base image that encapsulates the MPI application dependencies and facilitates the MPI communication.  An example of this is the included `mpibase` image, which can be built using: 
-```shell
-make build_mpibase && make push_mpibase
-```
-You can use the default images on [Docker Hub](https://hub.docker.com/r/piersharding/) or you must ensure that you configure your own Docker registry details by setting appropriate values for:
-```
-PULL_SECRET = "gitlab-registry"
-GITLAB_USER = you
-REGISTRY_PASSWORD = your-registry-password
-GITLAB_USER_EMAIL = "you@somewhere.net"
-CI_REGISTRY = gitlab.somewhere.com
-CI_REPOSITORY = repository/uri
-MPIBASE_IMAGE = $(CI_REGISTRY)/$(CI_REPOSITORY)/mpibase:latest
-```
-set in PrivateRules.mak
-
-
-Launch the helloworld job:
-```shell
-make test
-```
-
-Once everything starts, the logs are available in the `launcher` pod.
-
-## Scheduling modes
-
-The CRD for MPIJobs has two parameters: `replicas(int)` and `daemons(boolean)`.  Specifying only `replicas` will leave it up to the scheduler where to place the worker pods on the cluster, but if in addition `daemons` is set to `true` (see [mpi-test-demons.yaml](https://github.com/piersharding/metacontroller-mpi-operator/blob/master/mpi-test-daemons.yaml)) then the Pod AntiAffinity rules are applied and the Kubernetes scheduler will force the workers onto individual nodes - if available.
-initContainers check availability of the workers, prior to executing the `launcher`, so if any Pods are stuck in `Pending` then they are dropped out of the worker list.

@@ -7,12 +7,13 @@ helmTests: true
 
 controller:
   enabled: true
+  logLevel: debug
   replicas: 1
   image:
     registry: piersharding
     image: dask-operator
     tag: latest
-    pullPolicy: Always
+    pullPolicy: IfNotPresent
   resources:
     requests:
       cpu: 200m     # 200m = 0.2 CPU

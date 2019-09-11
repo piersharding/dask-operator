@@ -6,24 +6,27 @@ metadata:
   name: dask-controller
 spec:
   generateSelector: true
+  resyncPeriodSeconds: 10
   parentResource:
     apiVersion: piersharding.com/v1
     resource: dasks
   childResources:
-    # - apiVersion: v1
-    #   resource: configmaps
-    # - apiVersion: v1
-    #   resource: serviceaccounts
-    # - apiVersion: rbac.authorization.k8s.io/v1
-    #   resource: roles
-    # - apiVersion: rbac.authorization.k8s.io/v1
-    #   resource: rolebindings
-    - apiVersion: apps/v1
-      resource: statefulsets
+    - apiVersion: v1
+      resource: configmaps
+      updateStrategy:
+        method: InPlace
+    - apiVersion: v1
+      resource: services
+      updateStrategy:
+        method: Recreate
     - apiVersion: apps/v1
       resource: deployments
-    # - apiVersion: batch/v1
-    #   resource: jobs
+      updateStrategy:
+        method: RollingUpdate
+    - apiVersion: extensions/v1beta1
+      resource: ingresses
+      updateStrategy:
+        method: Recreate
   hooks:
     sync:
       webhook:

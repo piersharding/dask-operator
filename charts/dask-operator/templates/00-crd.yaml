@@ -11,11 +11,33 @@ spec:
     plural: dasks
     singular: dask
     kind: Dask
+  subresources:
+    status: {}
   additionalPrinterColumns:
-  - name: Replicas
+  - name: Components
     type: integer
-    description: The number of Pods in the Dask
-    JSONPath: .spec.replicas
+    description: The number of Components Requested in the Dask
+    priority: 0
+    JSONPath: .status.replicas
+  - name: Succeeded
+    type: integer
+    priority: 0
+    description: The number of Components Launched in the Dask
+    JSONPath: .status.succeeded
+  - name: Age
+    priority: 0
+    JSONPath: .metadata.creationTimestamp
+    type: date
+  - name: State
+    JSONPath: .status.state
+    type: string
+    priority: 0
+    description: Status of the Dask
+  - name: Resources
+    JSONPath: .status.resources
+    type: string
+    priority: 1
+    description: Resource details of the Dask
   validation:
     openAPIV3Schema:
       properties:
@@ -32,6 +54,11 @@ spec:
               title: Daemon, strictly one per node
               description: Force Dask cluster to launch one per node
               type: boolean
+            password:
+              title: Jupyter Notebook password
+              description: Jupyter Notebook password
+              type: string
+              # default: "password"
           required:
           - replicas
 
