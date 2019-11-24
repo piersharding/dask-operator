@@ -235,6 +235,12 @@ func sync(request *dtypes.SyncRequest) (*dtypes.SyncResponse, error) {
 
 	// setup configuration.
 	context := dtypes.SetConfig(request)
+	if context.Image == "" {
+		context.Image = Image
+	}
+	if context.PullPolicy == "" {
+		context.PullPolicy = PullPolicy
+	}
 
 	// Get resource details
 	resources, err := resourceDetails(context)
