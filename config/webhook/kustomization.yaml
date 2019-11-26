@@ -1,0 +1,27 @@
+resources:
+- manifests.yaml
+- service.yaml
+
+configurations:
+- kustomizeconfig.yaml
+
+secretGenerator:
+- name: webhook-service
+  files:
+  - tls.crt=secret/tls.crt
+  - tls.key=secret/tls.key
+  type: "kubernetes.io/tls"
+
+vars:
+- name: TLSCERT
+  objref:
+    kind: Secret
+    version: v1
+    name: webhook-service
+  fieldref:
+    fieldpath: data[tls.crt]
+
+
+patchesStrategicMerge:
+- webhook_mutating_patches.yaml
+- webhook_validating_patches.yaml

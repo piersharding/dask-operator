@@ -1,3 +1,8 @@
 PrivateRules.mak
 vendor
 /dask-operator
+config/webhook/secret/tls.*
+.vscode/
+build-arl-libs-image.sh
+cover.out
+tmp.yaml

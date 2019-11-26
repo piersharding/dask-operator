@@ -1,23 +1,31 @@
 ## Dask Kubernetes Operator
 
-This operator manages [Dask](https://dask.org/) clusters, consisting of a scheduler, works, and optionally Jupyter Notebook server.
+This operator manages [Dask](https://dask.org/) clusters, consisting of a scheduler, workers, and optionally Jupyter Notebook server.  The Operator has been developed using [kubebuilder](https://book.kubebuilder.io/).
 
 **NOTE**
 
 Everything is driven by `make`.  Type `make` to get a list of available targets.
 
-### Prerequisites
-
-* [Install Metacontroller](https://metacontroller.app/guide/install/)
-
 ### Install The Dask Operator
 
 ```sh
-make deploy REPLICAS=<n replicas>
+make install
+make deploy
 # undo with make delete
 ```
 
+### Install The Dask Operator with Admission Control WebHook
+
+```sh
+make certs
+make install
+make deployac
+# undo with make deleteac
+```
+
 ### Launch a Dask resource
+
+See [config/samples/analytics_v1_dask.yaml](config/samples/analytics_v1_dask.yaml) for a detailed example.
 
 ```sh
 cat <<EOF | kubectl apply -f -
@@ -92,11 +100,44 @@ You don't need to build to run the operator,
 but if you would like to make changes:
 
 ```sh
-make build
+make manager
 ```
 
 Or to make a new container image:
 
 ```sh
 make image
+```
+
+### Help
+```sh
+$ make
+make targets:
+Makefile:all                   run all
+Makefile:deleteac              delete deployment with Admission Control Hook
+Makefile:delete                delete deployment
+Makefile:deployac              deploy all with Admission Control Hook
+Makefile:deploy                deploy all
+Makefile:describe              describe Pods executed from Helm chart
+Makefile:docker-build          Build the docker image
+Makefile:docker-push           Push the docker image
+Makefile:fmt                   run fmt
+Makefile:generate              Generate code
+Makefile:help                  show this help.
+Makefile:image                 build and push
+Makefile:install               install CRDs
+Makefile:logs                  show Helm chart POD logs
+Makefile:manifests             generate mainfests
+Makefile:namespace             create the kubernetes namespace
+Makefile:run                   run foreground live
+Makefile:showcrds              show CRDs
+Makefile:show                  show deploy
+Makefile:test                  run tests
+Makefile:uninstall             uninstall CRDs
+Makefile:vet                   run vet
+
+make vars (+defaults):
+Makefile:CONTROLLER_ARGS       
+Makefile:CRD_OPTIONS           "crd:trivialVersions=true"
+Makefile:IMG                   piersharding/dask-operator-controller:latest
 ```

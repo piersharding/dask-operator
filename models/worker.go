@@ -11,13 +11,13 @@ import (
 
 // DaskWorkerDeployment generates the Deployment description for
 // the Dask Worker
-func DaskWorkerDeployment(context dtypes.DaskContext) (*appsv1.Deployment, error) {
-	// func DaskWorkerDeployment(context dtypes.DaskContext) (interface{}, error) {
+func DaskWorkerDeployment(dcontext dtypes.DaskContext) (*appsv1.Deployment, error) {
 	const workerDeployment = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: dask-worker-{{ .Name }}
+  namespace: {{ .Namespace }}
   labels:
     app.kubernetes.io/name: dask-worker
     app.kubernetes.io/instance: "{{ .Name }}"
@@ -65,9 +65,9 @@ spec:
           - name: DASK_PORT_WORKER
             value: "8788"
           - name: DASK_PORT_SCHEDULER
-            value: "8786"
+            value: "{{ .Port }}"
           - name: DASK_PORT_BOKEH
-            value: ":8787"
+            value: ":{{ .BokehPort }}"
           - name: DASK_LOCAL_DIRECTORY
             value: "/var/tmp"
           - name: DASK_RESOURCES
@@ -99,12 +99,12 @@ spec:
 {{- end }}
         ports:
         - name: worker
-          containerPort: 8786
+          containerPort: {{ .Port }}
         - name: bokeh
-          containerPort: 8787
+          containerPort: {{ .BokehPort }}
         readinessProbe:
           tcpSocket:
-            port: 8787
+            port: {{ .BokehPort }}
           initialDelaySeconds: 10
           timeoutSeconds: 10
           periodSeconds: 20
@@ -151,20 +151,20 @@ spec:
 {{ toYaml . | indent 8 }}
 {{- end }}
 `
-	if context.Daemon {
+	if dcontext.Daemon {
 		log.Infof("Adding Daemon affinity rules")
-		if context.Affinity == nil {
-			log.Debugf("context.Affinity.podAntiAffinity does not exist")
-			context.Affinity = map[string]interface{}{}
+		if dcontext.Affinity == nil {
+			log.Debugf("dcontext.Affinity.podAntiAffinity does not exist")
+			dcontext.Affinity = map[string]interface{}{}
 		}
-		if _, ok := context.Affinity.(map[string]interface{})["podAntiAffinity"]; !ok {
-			log.Debugf("context.Affinity.podAntiAffinity does not exist")
-			context.Affinity.(map[string]interface{})["podAntiAffinity"] = map[string]interface{}{}
+		if _, ok := dcontext.Affinity.(map[string]interface{})["podAntiAffinity"]; !ok {
+			log.Debugf("dcontext.Affinity.podAntiAffinity does not exist")
+			dcontext.Affinity.(map[string]interface{})["podAntiAffinity"] = map[string]interface{}{}
 		}
-		cAp := context.Affinity.(map[string]interface{})["podAntiAffinity"]
+		cAp := dcontext.Affinity.(map[string]interface{})["podAntiAffinity"]
 
 		if _, ok := cAp.(map[string]interface{})["requiredDuringSchedulingIgnoredDuringExecution"]; !ok {
-			log.Debugf("context.Affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution does not exist")
+			log.Debugf("dcontext.Affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution does not exist")
 			cAp.(map[string]interface{})["requiredDuringSchedulingIgnoredDuringExecution"] = []interface{}{}
 		}
 		cAp.(map[string]interface{})["requiredDuringSchedulingIgnoredDuringExecution"] =
@@ -175,11 +175,11 @@ spec:
 							map[string]interface{}{
 								"key":      "app.kubernetes.io/instance",
 								"operator": "In",
-								"values":   []string{context.Name}}}},
+								"values":   []string{dcontext.Name}}}},
 					"topologyKey": "kubernetes.io/hostname"})
 	}
 
-	result, err := utils.ApplyTemplate(workerDeployment, context)
+	result, err := utils.ApplyTemplate(workerDeployment, dcontext)
 	if err != nil {
 		log.Debugf("ApplyTemplate Error: %+v\n", err)
 		return nil, err

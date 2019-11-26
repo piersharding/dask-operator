@@ -1,0 +1,81 @@
+---
+  apiVersion: storage.k8s.io/v1
+  kind: StorageClass
+  metadata:
+    name: imagevol
+  provisioner: piersharding/imagevol
+  parameters:
+    description: "Volume from ImageVol FlexVolume driver"
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pylibs
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  flexVolume:
+    driver: "piersharding/imagevol"
+    options:
+      image: "piersharding/arl-pylibs:latest"
+      hostTarget: /data/images
+  storageClassName: imagevol
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pylibs
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  volumeName: "pylibs"
+  storageClassName: imagevol
+
+---
+apiVersion: analytics.piersharding.com/v1
+kind: Dask
+metadata:
+  name: app1
+spec:
+  # daemon: true
+  jupyter: true
+  replicas: 3
+  # image: arl:ubuntu18.04
+  # image: daskdev/dask:latest
+  image: piersharding/arl-dask:latest
+  jupyterIngress: notebook.dask.local
+  schedulerIngress: scheduler.dask.local
+  monitorIngress: monitor.dask.local
+  imagePullPolicy: IfNotPresent
+  env:
+    - name: PYTHONPATH
+      value: /pylibs:/arl
+    - name: ARL
+      value: /arl
+    - name: ARL_DASK_SCHEDULER
+      value: dask-scheduler-app1:8786
+  volumes:
+    - hostPath:
+        path: /home/piers/git/private/algorithm-reference-library
+        type: DirectoryOrCreate
+      name: arl
+    # - hostPath:
+    #     path: /home/piers/code/go/src/github.com/piersharding/dask-operator/pylibs
+    #     type: DirectoryOrCreate
+    #   name: pylibs
+    - name: pylibs
+      persistentVolumeClaim:
+        claimName: pylibs
+  volumeMounts:
+    - mountPath: /arl
+      readOnly: false
+      name: arl
+    - mountPath: "/pylibs"
+      name: pylibs

@@ -11,7 +11,7 @@ import (
 
 // DaskIngress generates the Ingress description for
 // the Dask cluster
-func DaskIngress(context dtypes.DaskContext) (*v1beta1.Ingress, error) {
+func DaskIngress(dcontext dtypes.DaskContext) (*v1beta1.Ingress, error) {
 
 	const daskIngress = `
 apiVersion: extensions/v1beta1
@@ -45,10 +45,17 @@ spec:
       - path: /
         backend:
           serviceName:  dask-scheduler-{{ .Name }}
-          servicePort: 8786
+          servicePort: {{.Port }}
+  - host: {{ .MonitorIngress }}
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName:  dask-scheduler-{{ .Name }}
+          servicePort: {{ .BokehPort }}
 {{- end }}
 `
-	result, err := utils.ApplyTemplate(daskIngress, context)
+	result, err := utils.ApplyTemplate(daskIngress, dcontext)
 	if err != nil {
 		log.Debugf("ApplyTemplate Error: %+v\n", err)
 		return nil, err

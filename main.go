@@ -1,369 +1,144 @@
+/*
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package main
 
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/piersharding/dask-operator/models"
+	"github.com/go-logr/logr"
+	analyticsv1 "github.com/piersharding/dask-operator/api/v1"
+	"github.com/piersharding/dask-operator/controllers"
 	dtypes "github.com/piersharding/dask-operator/types"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	extv1beta1 "k8s.io/api/extensions/v1beta1"
 
-	ejson "encoding/json"
-
-	log "github.com/sirupsen/logrus"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	// +kubebuilder:scaffold:imports
 )
 
-// Image Default Container Image
-var Image string
+var (
+	scheme   = runtime.NewScheme()
+	setupLog = ctrl.Log.WithName("setup")
+)
 
-// PullPolicy Default image pull policy
-var PullPolicy string
+// Debugf helper
+func Debugf(log logr.Logger, format string, a ...interface{}) {
+	log.Info(fmt.Sprintf(format, a...))
+}
 
-// ClientSet Global client connection handle
-var ClientSet *kubernetes.Clientset
-
-// Initialise logging etc.
 func init() {
+	_ = clientgoscheme.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
+	_ = appsv1.AddToScheme(scheme)
+	_ = extv1beta1.AddToScheme(scheme)
+	_ = analyticsv1.AddToScheme(scheme)
+	// +kubebuilder:scaffold:scheme
 
 	// set logging level
 	logLevelVar, ok := os.LookupEnv("LOG_LEVEL")
 	// LOG_LEVEL not set, let's default to debug
+	logLevel := false // will default to INFO
 	if !ok {
-		logLevelVar = "debug"
+		logLevel = true // Debug
+	} else {
+		switch logLevelVar {
+		case "DEBUG":
+			logLevel = true
+		default:
+			logLevel = false
+		}
 	}
-	// parse string, this is built-in feature of logrus
-	logLevel, err := log.ParseLevel(logLevelVar)
-	if err != nil {
-		logLevel = log.DebugLevel
-	}
-	// set global log level
-	log.SetLevel(logLevel)
+
+	ctrl.SetLogger(zap.New(func(o *zap.Options) {
+		o.Development = logLevel
+	}))
+
+	log := ctrl.Log.WithName("controller-main").WithName("setup")
 
 	// initialise core parameters
-	Image, ok = os.LookupEnv("IMAGE")
+	image, ok := os.LookupEnv("IMAGE")
 	if !ok {
-		Image = "daskdev/dask:latest"
-	}
-	log.Debugf("Default Image: %s", Image)
-
-	PullPolicy, ok = os.LookupEnv("PULL_POLICY")
-	if !ok {
-		PullPolicy = "IfNotPresent"
-	}
-	log.Debugf("Default PullPolicy: %s", PullPolicy)
-
-	// creates the in-cluster config
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		log.Debugf("No cluster config: %s", err.Error())
-		var kubeconfig *string
-		if home := homeDir(); home != "" {
-			kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		} else {
-			kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-		}
-		flag.Parse()
-
-		// use the current context in kubeconfig
-		config, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
-		if err != nil {
-			log.Fatalf("No current context config: %s", err.Error())
-		}
-	}
-	log.Debugf("Current context config: %+v", config)
-
-	// creates the clientset
-	ClientSet, err = kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("ClientSet failed: %s", err.Error())
-	}
-	log.Debugf("ClientSet established")
-
-	log.Debugf("initialised.")
-}
-
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
-	}
-	return os.Getenv("USERPROFILE") // windows
-}
-
-// read back the status info for the Ingress resource
-func ingressStatus(context dtypes.DaskContext) (string, error) {
-
-	if context.JupyterIngress == "" && context.SchedulerIngress == "" {
-		return "", nil
-	}
-	ingress, err := ClientSet.ExtensionsV1beta1().Ingresses(context.Namespace).Get("dask-"+context.Name, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("ingressStatus.Get Error: %+v\n", err.Error())
-		if !strings.Contains(err.Error(), "not found") {
-			return "", err
-		}
-	}
-	log.Debugf("The ingress: %+v\n", ingress)
-	// log.Debugf("The ingress status: %+v\n", ingress.Status.LoadBalancer.Ingress[0].IP)
-	ip := ""
-	for _, i := range ingress.Status.LoadBalancer.Ingress {
-		ip = ip + i.IP
-	}
-	var h []string
-	for _, r := range ingress.Spec.Rules {
-		h = append(h, fmt.Sprintf("http://%s/", r.Host))
-	}
-	hosts := fmt.Sprintf("Ingress: %s IP: %s, Hosts: %s", ingress.Name, ip, strings.Join(h[:], ", "))
-
-	status, err := json.Marshal(&ingress.Status)
-	// status, err := json.Marshal(&ingress)
-	if err != nil {
-		log.Errorf("ingressStatus.json Error: %+v\n", err.Error())
-		return "", err
-	}
-	s := hosts + " status: " + string(status)
-	log.Debugf("The ingress status: %s\n", s)
-	return s, nil
-}
-
-// read back the status info for the Service resource
-func serviceStatus(context dtypes.DaskContext, name string) (string, error) {
-
-	service, err := ClientSet.CoreV1().Services(context.Namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("serviceStatus.Get Error: %+v\n", err.Error())
-		if !strings.Contains(err.Error(), "not found") {
-			return "", err
-		}
-	}
-	log.Debugf("The service: %+v\n", service)
-	var ports []string
-	for _, p := range service.Spec.Ports {
-		ports = append(ports, fmt.Sprintf("%s/%d", p.Name, p.Port))
-	}
-	portList := fmt.Sprintf("Service: %s Type: %s, IP: %s, Ports: %s", service.Name, service.Spec.Type, service.Spec.ClusterIP, strings.Join(ports[:], ","))
-
-	status, err := json.Marshal(&service.Status)
-	// status, err := json.Marshal(&service)
-	if err != nil {
-		log.Errorf("serviceStatus.json Error: %+v\n", err.Error())
-		return "", err
-	}
-	s := portList + " status: " + string(status)
-	log.Debugf("The service status: %s\n", s)
-	return s, nil
-}
-
-// read back the status info for the Deployment resource
-func deploymentStatus(context dtypes.DaskContext, name string) (string, error) {
-
-	// pods, err := ClientSet.CoreV1().Pods("").List(metav1.ListOptions{})
-	// if err != nil {
-	// 	panic(err.Error())
-	// }
-	// fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
-
-	deployment, err := ClientSet.AppsV1().Deployments(context.Namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		log.Errorf("deploymentStatus.Get Error: %+v\n", err.Error())
-		if !strings.Contains(err.Error(), "not found") {
-			return "", err
-		}
-	}
-	log.Debugf("The deployment: %+v\n", deployment)
-	status, err := json.Marshal(&deployment.Status)
-	if err != nil {
-		log.Errorf("deploymentStatus.json Error: %+v\n", err.Error())
-		return "", err
-	}
-	log.Debugf("The deployment status: %s\n", string(status))
-	return string(status), nil
-}
-
-// pull together the resource details
-func resourceDetails(context dtypes.DaskContext) (string, error) {
-	resIngress, err := ingressStatus(context)
-	if err != nil {
-		log.Errorf("ingressStatus Error: %+v\n", err)
-		return fmt.Sprintf("ingressStatus Error: %+v\n", err), err
-	}
-	// res, err = deploymentStatus(context, "dask-scheduler-"+context.Name)
-	// res, err = deploymentStatus(context, "dask-worker-"+context.Name)
-	// res, err = deploymentStatus(context, "jupyter-notebook-"+context.Name)
-	resSchedulerService, err := serviceStatus(context, "dask-scheduler-"+context.Name)
-	if err != nil {
-		log.Errorf("serviceStatus scheduler Error: %+v\n", err)
-		return fmt.Sprintf("serviceStatus scheduler Error: %+v\n", err), err
-	}
-	var resJupyterService = ""
-	if context.Jupyter {
-		resJupyterService, err = serviceStatus(context, "jupyter-notebook-"+context.Name)
-		if err != nil {
-			log.Errorf("serviceStatus notebook Error: %+v\n", err)
-			return fmt.Sprintf("serviceStatus notebook Error: %+v\n", err), err
-		}
-	}
-	return fmt.Sprintf("%s - %s - %s", resIngress, resSchedulerService, resJupyterService), nil
-}
-
-// Main handler for controller sync requests
-func sync(request *dtypes.SyncRequest) (*dtypes.SyncResponse, error) {
-
-	response := &dtypes.SyncResponse{}
-	response.Status.State = "Building"
-
-	// Compute status based on latest observed state.
-	for _, deployment := range request.Children.Deployments {
-		response.Status.Replicas++
-		if deployment.Status.ReadyReplicas == deployment.Status.Replicas {
-			response.Status.Succeeded++
-		}
-	}
-	if response.Status.Replicas == response.Status.Succeeded {
-		response.Status.State = "Running"
-	}
-	log.Infof("Status replicas: %i, succeeded: %i", response.Status.Replicas, response.Status.Succeeded)
-
-	// setup configuration.
-	context := dtypes.SetConfig(request)
-	if context.Image == "" {
-		context.Image = Image
-	}
-	if context.PullPolicy == "" {
-		context.PullPolicy = PullPolicy
-	}
-
-	// Get resource details
-	resources, err := resourceDetails(context)
-	if err != nil {
-		response.Status.State = resources
-		return response, err
-	}
-	response.Status.Resources = resources
-
-	// Generate desired children.
-	configMap, err := models.DaskConfigs(context)
-	if err != nil {
-		log.Errorf("DaskConfigs Error: %+v\n", err)
-		response.Status.State = fmt.Sprintf("DaskConfigs Error: %+v\n", err)
-		return response, err
-	}
-	log.Debugf("DaskConfigs: %+v", *configMap)
-	response.Children = append(response.Children, configMap)
-
-	if context.Jupyter {
-		jupyterService, err := models.JupyterService(context)
-		if err != nil {
-			log.Errorf("JupyterService Error: %+v\n", err)
-			response.Status.State = fmt.Sprintf("JupyterService Error: %+v\n", err)
-			return response, err
-		}
-		log.Debugf("JupyterService: %+v", *jupyterService)
-		response.Children = append(response.Children, jupyterService)
-
-		jupyterDeployment, err := models.JupyterDeployment(context)
-		if err != nil {
-			log.Errorf("JupyterDeployment Error: %+v\n", err)
-			response.Status.State = fmt.Sprintf("JupyterDeployment Error: %+v\n", err)
-			return response, err
-		}
-		log.Debugf("JupyterDeployment: %+v", *jupyterDeployment)
-		response.Children = append(response.Children, jupyterDeployment)
-	}
-
-	schedulerService, err := models.DaskSchedulerService(context)
-	if err != nil {
-		log.Errorf("DaskSchedulerService Error: %+v\n", err)
-		response.Status.State = fmt.Sprintf("DaskSchedulerService Error: %+v\n", err)
-		return response, err
-	}
-	log.Debugf("DaskSchedulerService: %+v", *schedulerService)
-	response.Children = append(response.Children, schedulerService)
-
-	schedulerDeployment, err := models.DaskSchedulerDeployment(context)
-	if err != nil {
-		log.Errorf("DaskSchedulerDeployment Error: %+v\n", err)
-		response.Status.State = fmt.Sprintf("DaskSchedulerDeployment Error: %+v\n", err)
-		return response, err
-	}
-	log.Debugf("DaskSchedulerDeployment: %+v", *schedulerDeployment)
-	response.Children = append(response.Children, schedulerDeployment)
-
-	workerDeployment, err := models.DaskWorkerDeployment(context)
-	if err != nil {
-		log.Errorf("DaskWorkerDeployment Error: %+v\n", err)
-		response.Status.State = fmt.Sprintf("DaskWorkerDeployment Error: %+v\n", err)
-		return response, err
-	}
-	log.Debugf("DaskWorkerDeployment: %+v", *workerDeployment)
-	response.Children = append(response.Children, workerDeployment)
-
-	if context.JupyterIngress != "" || context.SchedulerIngress != "" {
-		daskIngress, err := models.DaskIngress(context)
-		if err != nil {
-			log.Errorf("DaskIngress Error: %+v\n", err)
-			response.Status.State = fmt.Sprintf("DaskIngress Error: %+v\n", err)
-			return response, err
-		}
-		log.Debugf("DaskIngress: %+v", *daskIngress)
-		response.Children = append(response.Children, daskIngress)
-	}
-
-	return response, nil
-}
-
-func syncHandler(w http.ResponseWriter, r *http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	log.Debugf("Body: %s", body)
-
-	request := &dtypes.SyncRequest{}
-	if err := json.Unmarshal(body, request); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	log.Infof("Sync request: %s/%s", request.Parent.Namespace, request.Parent.Name)
-	prettyJSON, err := ejson.MarshalIndent(request, "", "    ")
-	log.Debugf("Entire request(JSON): %s", prettyJSON)
-
-	log.Debugf("Parent: %+v", request.Parent)
-
-	// trap error of sync for later
-	response, serr := sync(request)
-
-	body, err = json.Marshal(&response)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	prettyJSON, err = ejson.MarshalIndent(response, "", "    ")
-	log.Debugf("Entire response(JSON): %s", prettyJSON)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(body)
-
-	if serr != nil {
-		// http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Errorf("Sync request errored: %s/%s", request.Parent.Namespace, request.Parent.Name)
+		dtypes.Image = "daskdev/dask:latest"
 	} else {
-		log.Infof("Sync request completed: %s/%s", request.Parent.Namespace, request.Parent.Name)
+		dtypes.Image = image
 	}
+	Debugf(log, "Default Image: %s", dtypes.Image)
+
+	pullPolicy, ok := os.LookupEnv("PULL_POLICY")
+	if !ok {
+		dtypes.PullPolicy = "IfNotPresent"
+	} else {
+		dtypes.PullPolicy = pullPolicy
+	}
+	Debugf(log, "Default PullPolicy: %s", dtypes.PullPolicy)
+
+	Debugf(log, "Controller initialised.")
 }
 
 func main() {
-	http.HandleFunc("/sync", syncHandler)
+	var metricsAddr string
+	var enableLeaderElection bool
+	var enableWebhooks bool
+	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
+		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	flag.BoolVar(&enableWebhooks, "enable-webhooks", false,
+		"Enable WebHooks for the admission controller.")
+	flag.Parse()
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+		Scheme:             scheme,
+		MetricsBindAddress: metricsAddr,
+		LeaderElection:     enableLeaderElection,
+		Port:               9443,
+	})
+	if err != nil {
+		setupLog.Error(err, "unable to start manager")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.DaskReconciler{
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("Dask"),
+		CustomLog: dtypes.CustomLogger{Logger: ctrl.Log.WithName("controllers").WithName("Dask")},
+		Scheme:    mgr.GetScheme(),
+		Recorder:  mgr.GetEventRecorderFor("dask-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Dask")
+		os.Exit(1)
+	}
+
+	if enableWebhooks || os.Getenv("ENABLE_WEBHOOKS") == "true" {
+		if err = (&analyticsv1.Dask{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "Dask")
+			os.Exit(1)
+		}
+	}
+	// +kubebuilder:scaffold:builder
+
+	setupLog.Info("starting manager")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
 }

@@ -1,0 +1,8 @@
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mutating-webhook-configuration
+webhooks:
+- name: mdask.piersharding.com
+  clientConfig:
+    caBundle: $(TLSCERT)

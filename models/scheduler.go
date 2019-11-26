@@ -7,22 +7,23 @@ import (
 	dtypes "github.com/piersharding/dask-operator/types"
 	"github.com/piersharding/dask-operator/utils"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // DaskSchedulerService generates the Service description for
 // the Dask Scheduler
-func DaskSchedulerService(context dtypes.DaskContext) (*v1.Service, error) {
+func DaskSchedulerService(dcontext dtypes.DaskContext) (*corev1.Service, error) {
 
 	const schedulerService = `
 apiVersion: v1
 kind: Service
 metadata:
   name: dask-scheduler-{{ .Name }}
+  namespace: {{ .Namespace }}
   labels:
     app.kubernetes.io/name: dask-scheduler
     app.kubernetes.io/instance: "{{ .Name }}"
-    app.kubernetes.io/managed-by: MetaController
+    app.kubernetes.io/managed-by: DaskController
 spec:
   selector:
     app.kubernetes.io/name:  dask-scheduler
@@ -38,12 +39,12 @@ spec:
     targetPort: bokeh
     protocol: TCP
 `
-	result, err := utils.ApplyTemplate(schedulerService, context)
+	result, err := utils.ApplyTemplate(schedulerService, dcontext)
 	if err != nil {
 		log.Debugf("ApplyTemplate Error: %+v\n", err)
 		return nil, err
 	}
-	service := &v1.Service{}
+	service := &corev1.Service{}
 	if err := json.Unmarshal([]byte(result), service); err != nil {
 		return nil, err
 	}
@@ -52,17 +53,61 @@ spec:
 
 // DaskSchedulerDeployment generates the Deployment description for
 // the Dask Scheduler
-func DaskSchedulerDeployment(context dtypes.DaskContext) (*appsv1.Deployment, error) {
+func DaskSchedulerDeployment(dcontext dtypes.DaskContext) (*appsv1.Deployment, error) {
+
+	// replicasOf1 := int32(1)
+
+	// deployment := appsv1.Deployment{
+	// 	ObjectMeta: metav1.ObjectMeta{
+	// 		Name:            "dask-scheduler-" + dcontext.Name,
+	// 		Namespace:       dask.Namespace,
+	// 		OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(&dask, analyticsv1.GroupVersion.WithKind("Dask"))},
+	// 		Labels: map[string]string{
+	// 			"app.kubernetes.io/name":       "dask-scheduler",
+	// 			"app.kubernetes.io/instance":   dcontext.Name,
+	// 			"app.kubernetes.io/managed-by": "DaskController",
+	// 		},
+	// 	},
+	// 	Spec: appsv1.DeploymentSpec{
+	// 		// Replicas: &dask.Spec.Replicas,
+	// 		Replicas: &replicasOf1,
+	// 		Selector: &metav1.LabelSelector{
+	// 			MatchLabels: map[string]string{
+	// 				"app.kubernetes.io/name":     "dask-scheduler",
+	// 				"app.kubernetes.io/instance": dcontext.Name,
+	// 			},
+	// 		},
+	// 		Template: corev1.PodTemplateSpec{
+	// 			ObjectMeta: metav1.ObjectMeta{
+	// 				Labels: map[string]string{
+	// 					"app.kubernetes.io/name":       "dask-scheduler",
+	// 					"app.kubernetes.io/instance":   dcontext.Name,
+	// 					"app.kubernetes.io/managed-by": "DaskController",
+	// 				},
+	// 			},
+	// 			Spec: corev1.PodSpec{
+	// 				Containers: []corev1.Container{
+	// 					{
+	// 						Name:  "nginx",
+	// 						Image: "nginx:latest",
+	// 					},
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// }
+	// return &deployment, nil
 
 	const schedulerDeployment = `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: dask-scheduler-{{ .Name }}
+  namespace: {{ .Namespace }}
   labels:
     app.kubernetes.io/name: dask-scheduler
     app.kubernetes.io/instance: "{{ .Name }}"
-    app.kubernetes.io/managed-by: MetaController
+    app.kubernetes.io/managed-by: DaskController
 spec:
   selector:
     matchLabels:
@@ -74,14 +119,14 @@ spec:
       labels:
         app.kubernetes.io/name: dask-scheduler
         app.kubernetes.io/instance: "{{ .Name }}"
-        app.kubernetes.io/managed-by: MetaController
+        app.kubernetes.io/managed-by: DaskController
     spec:
     {{- with .PullSecrets }}
       imagePullSecrets:
       {{range $val := .}}
       - name: {{ $val.name }}
       {{end}}
-      {{- end }}      
+      {{- end }}
       containers:
       - name: scheduler
         image: "{{ .Image }}"
@@ -96,9 +141,9 @@ spec:
           - name: DASK_SCHEDULER
             value: dask-scheduler-{{ .Name }}.{{ .Namespace }}
           - name: DASK_PORT_SCHEDULER
-            value: "8786"
+            value: "{{ .Port }}"
           - name: DASK_PORT_BOKEH
-            value: ":8787"
+            value: ":{{ .BokehPort }}"
           - name: DASK_BOKEH_WHITELIST
             value: dask-scheduler-{{ .Name }}.{{ .Namespace }}
           - name: DASK_BOKEH_APP_PREFIX
@@ -132,9 +177,9 @@ spec:
 {{- end }}
         ports:
         - name: scheduler
-          containerPort: 8786
+          containerPort: {{ .Port }}
         - name: bokeh
-          containerPort: 8787
+          containerPort: {{ .BokehPort }}
         volumeMounts:
         - mountPath: /start-dask-scheduler.sh
           subPath: start-dask-scheduler.sh
@@ -148,7 +193,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /json/identity.json
-            port: 8787
+            port: {{ .BokehPort }}
           initialDelaySeconds: 10
           timeoutSeconds: 10
           periodSeconds: 20
@@ -162,7 +207,6 @@ spec:
           path: /var/tmp
           type: DirectoryOrCreate
         name: localdir
-
 {{- with .Volumes }}
 {{ toYaml . | indent 6 }}
 {{- end }}
@@ -181,7 +225,7 @@ spec:
 
 `
 
-	result, err := utils.ApplyTemplate(schedulerDeployment, context)
+	result, err := utils.ApplyTemplate(schedulerDeployment, dcontext)
 	if err != nil {
 		log.Debugf("ApplyTemplate Error: %+v\n", err)
 		return nil, err

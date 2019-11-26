@@ -6,18 +6,19 @@ import (
 	"github.com/appscode/go/log"
 	dtypes "github.com/piersharding/dask-operator/types"
 	"github.com/piersharding/dask-operator/utils"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // DaskConfigs generates the ConfigMap for
 // the Dask Scheduler and Worker
-func DaskConfigs(context dtypes.DaskContext) (*v1.ConfigMap, error) {
+func DaskConfigs(dcontext dtypes.DaskContext) (*corev1.ConfigMap, error) {
 
 	const daskConfigs = `
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: dask-configs-{{ .Name }}
+  namespace: {{ .Namespace }}
   labels:
     app.kubernetes.io/name: dask-configs
     app.kubernetes.io/instance: "{{ .Name }}"
@@ -210,12 +211,12 @@ data:
     fi
     
 `
-	result, err := utils.ApplyTemplate(daskConfigs, context)
+	result, err := utils.ApplyTemplate(daskConfigs, dcontext)
 	if err != nil {
 		log.Debugf("ApplyTemplate Error: %+v\n", err)
 		return nil, err
 	}
-	configmap := &v1.ConfigMap{}
+	configmap := &corev1.ConfigMap{}
 	if err := json.Unmarshal([]byte(result), configmap); err != nil {
 		return nil, err
 	}
