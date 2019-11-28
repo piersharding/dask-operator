@@ -86,15 +86,61 @@ type DaskSpec struct {
 	// +optional
 	PullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
-	// Specifies the Environment variables.
+	// Specifies the NodeSelector configuration.
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
-	// Specifies the Environment variables.
+	// Specifies the Affinity configuration.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 
+	// Specifies the Toleration configuration.
+	// +optional
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
 	// Specifies the Environment variables.
+	// +optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Specifies the Scheduler specfic variables.
+	// +optional
+	Scheduler *DaskDeploymentSpec `json:"scheduler,omitempty"`
+
+	// Specifies the Worker specfic variables.
+	// +optional
+	Worker *DaskDeploymentSpec `json:"worker,omitempty"`
+
+	// Specifies the Jupyter notebook specfic variables.
+	// +optional
+	Notebook *DaskDeploymentSpec `json:"notebook,omitempty"`
+}
+
+type DaskDeploymentSpec struct {
+	// Specifies the Volumes.
+	// +optional
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
+
+	// Specifies the VolumeMounts.
+	// +optional
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// Specifies the Environment variables.
+	// +optional
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Specifies the Pull Secrets.
+	// +optional
+	PullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
+	// Specifies the NodeSelector configuration.
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Specifies the Affinity configuration.
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+
+	// Specifies the Toleration configuration.
 	// +optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/appscode/go/log"
@@ -41,6 +42,9 @@ type DaskContext struct {
 	Env              interface{}
 	JupyterImage     string
 	JupyterPassword  string
+	Scheduler        interface{}
+	Worker           interface{}
+	Notebook         interface{}
 }
 
 // SetConfig setup the configuration
@@ -69,7 +73,10 @@ func SetConfig(dask analyticsv1.Dask) DaskContext {
 		Volumes:          dask.Spec.Volumes,
 		Env:              dask.Spec.Env,
 		JupyterImage:     "jupyter/scipy-notebook:latest",
-		JupyterPassword:  dask.Spec.JupyterPassword}
+		JupyterPassword:  dask.Spec.JupyterPassword,
+		Scheduler:        dask.Spec.Scheduler,
+		Worker:           dask.Spec.Worker,
+		Notebook:         dask.Spec.Notebook}
 
 	if dask.Spec.Daemon != nil {
 		context.Daemon = *dask.Spec.Daemon
@@ -86,8 +93,79 @@ func SetConfig(dask analyticsv1.Dask) DaskContext {
 	if context.JupyterPassword == "" {
 		context.JupyterPassword = "password"
 	}
+
+	//   // overlay
+	// if dcontext.Notebook != nil {
+	// 	result, err := json.Marshal(&dcontext.Notebook)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	if err := json.Unmarshal([]byte(result), &dcontext); err != nil {
+	// 		return nil, err
+	// 	}
+	// }
+
 	log.Debugf("context: %+v", context)
 	return context
+}
+
+// ForNotebook - copy and arrange config values for Notebook
+func (context *DaskContext) ForNotebook() DaskContext {
+	out := new(DaskContext)
+	out = context
+	out.applySpecifics(context.Notebook.(*analyticsv1.DaskDeploymentSpec))
+	return *out
+}
+
+// ForScheduler - copy and arrange config values for Scheduler
+func (context *DaskContext) ForScheduler() DaskContext {
+	out := new(DaskContext)
+	out = context
+	out.applySpecifics(context.Scheduler.(*analyticsv1.DaskDeploymentSpec))
+	return *out
+}
+
+// ForWorker - copy and arrange config values for Worker
+func (context *DaskContext) ForWorker() DaskContext {
+	out := new(DaskContext)
+	out = context
+	out.applySpecifics(context.Worker.(*analyticsv1.DaskDeploymentSpec))
+	// if reflect.TypeOf(context.Worker) == reflect.TypeOf(&analyticsv1.DaskDeploymentSpec{}) {
+	// 	if context.Worker.(*analyticsv1.DaskDeploymentSpec) != nil {
+	return *out
+}
+
+// applySpecifics - copy and arrange config values for deployment class
+func (context *DaskContext) applySpecifics(specific *analyticsv1.DaskDeploymentSpec) {
+
+	if specific != nil {
+		byt, _ := json.Marshal(specific)
+		json.Unmarshal(byt, context)
+		if specific.Volumes == nil {
+			context.Volumes = nil
+		}
+		if specific.VolumeMounts == nil {
+			context.VolumeMounts = nil
+		}
+		if specific.Env == nil {
+			context.Env = nil
+		}
+		if specific.PullSecrets == nil {
+			context.PullSecrets = nil
+		}
+		if specific.NodeSelector == nil {
+			context.NodeSelector = nil
+		}
+		if specific.Affinity == nil {
+			context.Affinity = nil
+		}
+		if specific.Tolerations == nil {
+			context.Tolerations = nil
+		}
+		if specific.Resources == nil {
+			context.Resources = nil
+		}
+	}
 }
 
 // CustomLogger - add Errorf, Infof, and Debugf

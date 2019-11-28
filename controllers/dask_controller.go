@@ -69,6 +69,15 @@ func Debugf(log logr.Logger, format string, a ...interface{}) {
 	log.Info(fmt.Sprintf(format, a...))
 }
 
+// DaskReconciler reconciles a Dask object
+type DaskReconciler struct {
+	client.Client
+	Log       logr.Logger
+	CustomLog dtypes.CustomLogger
+	Scheme    *runtime.Scheme
+	Recorder  record.EventRecorder
+}
+
 // read back the status info for the Ingress resource
 func (r *DaskReconciler) ingressStatus(dcontext dtypes.DaskContext) (string, error) {
 	ctx := context.Background()
@@ -165,7 +174,7 @@ func (r *DaskReconciler) serviceStatus(dcontext dtypes.DaskContext, name string)
 	// 		return "", err
 	// 	}
 	// }
-	Debugf(log, "The service: %+v\n", service)
+	// Debugf(log, "The service: %+v\n", service)
 	var ports []string
 	for _, p := range service.Spec.Ports {
 		ports = append(ports, fmt.Sprintf("%s/%d", p.Name, p.Port))
@@ -264,15 +273,6 @@ func (r *DaskReconciler) resourceDetails(dcontext dtypes.DaskContext) (string, e
 	return fmt.Sprintf("%s - %s - %s", resIngress, resSchedulerService, resJupyterService), nil
 }
 
-// DaskReconciler reconciles a Dask object
-type DaskReconciler struct {
-	client.Client
-	Log       logr.Logger
-	CustomLog dtypes.CustomLogger
-	Scheme    *runtime.Scheme
-	Recorder  record.EventRecorder
-}
-
 // Reconcile main reconcile loop
 func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -355,6 +355,7 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// Generate desired children.
 
 	// create dependent ConfigMap
+	Debugf(log, "###### Create ConfigMap #######")
 	if currentSchedulerDeployment == nil {
 		configMap, err := models.DaskConfigs(dcontext)
 		if err != nil {
@@ -378,6 +379,7 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// if we have Jupyter enabled, create deployment
+	Debugf(log, "###### Create Jupyter #######")
 	if dcontext.Jupyter && currentJupyterDeployment == nil {
 		jupyterService, err := models.JupyterService(dcontext)
 		if err != nil {
@@ -398,7 +400,7 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return ctrl.Result{}, err
 		}
 
-		jupyterDeployment, err := models.JupyterDeployment(dcontext)
+		jupyterDeployment, err := models.JupyterDeployment(dcontext.ForNotebook())
 		if err != nil {
 			Errorf(log, err, "JupyterDeployment Error: %+v\n", err)
 			dask.Status.State = fmt.Sprintf("JupyterDeployment Error: %+v\n", err)
@@ -420,6 +422,7 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// create scheduler deployment and service
+	Debugf(log, "###### Create Scheduler #######")
 	if currentSchedulerDeployment == nil {
 		schedulerService, err := models.DaskSchedulerService(dcontext)
 		if err != nil {
@@ -440,7 +443,7 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return ctrl.Result{}, err
 		}
 
-		schedulerDeployment, err := models.DaskSchedulerDeployment(dcontext)
+		schedulerDeployment, err := models.DaskSchedulerDeployment(dcontext.ForScheduler())
 		if err != nil {
 			Errorf(log, err, "DaskSchedulerDeployment Error: %+v\n", err)
 			dask.Status.State = fmt.Sprintf("DaskSchedulerDeployment Error: %+v\n", err)
@@ -462,8 +465,9 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// create worker cluster
+	Debugf(log, "###### Create Worker #######")
 	if currentWorkerDeployment == nil {
-		workerDeployment, err := models.DaskWorkerDeployment(dcontext)
+		workerDeployment, err := models.DaskWorkerDeployment(dcontext.ForWorker())
 		if err != nil {
 			Errorf(log, err, "DaskWorkerDeployment Error: %+v\n", err)
 			dask.Status.State = fmt.Sprintf("DaskWorkerDeployment Error: %+v\n", err)
@@ -485,6 +489,7 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// if required, create Ingress for scheduler and jupyter
+	Debugf(log, "###### Create Ingress #######")
 	if currentSchedulerDeployment == nil || currentJupyterDeployment == nil {
 		if dcontext.JupyterIngress != "" || dcontext.SchedulerIngress != "" {
 

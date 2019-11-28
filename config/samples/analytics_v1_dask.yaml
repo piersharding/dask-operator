@@ -54,6 +54,16 @@ spec:
   schedulerIngress: scheduler.dask.local
   monitorIngress: monitor.dask.local
   imagePullPolicy: IfNotPresent
+  # notebook:
+  #   env:
+  #     - name: PYTHONPATH
+  #       value: /pylibs:/arl
+  #     - name: ARL
+  #       value: /arl
+  #     - name: ARL_DASK_SCHEDULER
+  #       value: dask-scheduler-app1:8786
+  #     - name: CRAZY_VAR
+  #       value: dask-scheduler-app1:8786
   env:
     - name: PYTHONPATH
       value: /pylibs:/arl
