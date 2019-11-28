@@ -25,6 +25,12 @@ make deployac
 
 ### Launch a Dask resource
 
+For the full Dask resource interface documentation see:
+```
+kubectl get crds dasks.analytics.piersharding.com -o yaml \
+   dasks.analytics.piersharding.comdasks.analytics.piersharding.com
+```
+
 See [config/samples/analytics_v1_dask.yaml](config/samples/analytics_v1_dask.yaml) for a detailed example.
 
 ```sh
@@ -50,6 +56,8 @@ spec:
   # affinity:
   # nodeSelector:
   # tolerations:
+  # add any of the above elements to notebook:, scheduler: and worker: 
+  # to specialise for each
 EOF
 ```
 
