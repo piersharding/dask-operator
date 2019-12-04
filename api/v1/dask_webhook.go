@@ -54,17 +54,20 @@ func (r *Dask) Default() {
 		r.Spec.ImagePullPolicy = "IfNotPresent"
 	}
 
-	if r.Spec.Daemon == nil {
-		r.Spec.Daemon = new(bool)
-	}
+	// if r.Spec.Daemon == nil {
+	// 	r.Spec.Daemon = new(bool)
+	// }
 
-	if r.Spec.Jupyter == nil {
-		r.Spec.Jupyter = new(bool)
-	}
+	// if r.Spec.Jupyter == nil {
+	// 	r.Spec.Jupyter = new(bool)
+	// }
+	// if r.Spec.Replicas == nil {
+	// 	r.Spec.Replicas = new(int32)
+	// 	*r.Spec.Replicas = 1
+	// }
 
-	if r.Spec.Replicas == nil {
-		r.Spec.Replicas = new(int32)
-		*r.Spec.Replicas = 1
+	if r.Spec.Replicas == 0 {
+		r.Spec.Replicas = int32(5)
 	}
 	if r.Spec.JupyterPassword == "" {
 		r.Spec.JupyterPassword = "password"

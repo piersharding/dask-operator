@@ -137,6 +137,10 @@ data:
     
   start-dask-scheduler.sh: |
     #!/usr/bin/env bash
+    ## force upgrade of dask because 2.3.0 is buggered!
+    #if [ -f /opt/conda/bin/pip ]; then
+    #  /opt/conda/bin/pip install --upgrade dask
+    #fi
 
     set -o errexit -o pipefail
 
@@ -168,6 +172,10 @@ data:
 
   start-dask-worker.sh: |
     #!/usr/bin/env bash
+    ## force upgrade of dask because 2.3.0 is buggered!
+    #if [ -f /opt/conda/bin/pip ]; then
+    #  /opt/conda/bin/pip install --upgrade dask
+    #fi
 
     set -o errexit -o pipefail
     
@@ -204,6 +212,11 @@ data:
             --resources "${DASK_RESOURCES}" \
             --death-timeout "180" \
             "${DASK_SCHEDULER}:${DASK_PORT_SCHEDULER}"
+        #dask-worker \
+        #    --local-directory "${DASK_LOCAL_DIRECTORY}" \
+        #    --dashboard \
+        #    --dashboard-address "${DASK_PORT_BOKEH}" \
+        #"${DASK_SCHEDULER}:${DASK_PORT_SCHEDULER}"            
     else
         dask-worker "$@"
         echo "Dask Scheduler: ${DASK_SCHEDULER}"

@@ -1,0 +1,19 @@
+---
+apiVersion: analytics.piersharding.com/v1
+kind: Dask
+metadata:
+  name: app1
+spec:
+  # daemon: true
+  jupyter: true
+  replicas: 5
+  # image: arl:ubuntu18.04
+  image: daskdev/dask:latest
+  #image: piersharding/arl-dask:latest
+  jupyterIngress: notebook.dask.local
+  schedulerIngress: scheduler.dask.local
+  monitorIngress: monitor.dask.local
+  # imagePullPolicy: IfNotPresent
+  imagePullPolicy: Always
+
+

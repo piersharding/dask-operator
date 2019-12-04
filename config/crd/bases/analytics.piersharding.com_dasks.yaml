@@ -8,6 +8,28 @@ metadata:
   creationTimestamp: null
   name: dasks.analytics.piersharding.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.replicas
+    description: The number of Components Requested in the Dask
+    name: Components
+    type: integer
+  - JSONPath: .status.succeeded
+    description: The number of Components Launched in the Dask
+    name: Succeeded
+    type: integer
+  - JSONPath: .metadata.creationTimestamp
+    description: The number of Components Requested in the Dask
+    name: Age
+    type: date
+  - JSONPath: .status.state
+    description: Status of the Dask
+    name: State
+    type: string
+  - JSONPath: .status.resources
+    description: ' Resource details of the Dask'
+    name: Resources
+    priority: 1
+    type: string
   group: analytics.piersharding.com
   names:
     kind: Dask
@@ -2781,9 +2803,9 @@ spec:
                   type: array
               type: object
             replicas:
-              description: Number of workers to spawn
+              description: Number of workers to spawn - default will be 5
               format: int32
-              minimum: 1
+              minimum: 0
               type: integer
             resources:
               description: Specifies the Environment variables.

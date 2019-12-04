@@ -124,10 +124,12 @@ spec:
           name: dask-configs-{{ .Name }}
           defaultMode: 0777
         name: dask-script
-      - hostPath:
-          path: /var/tmp
-          type: DirectoryOrCreate
-        name: localdir
+      #- hostPath:
+      #    path: /var/tmp
+      #    type: DirectoryOrCreate
+      #  name: localdir
+      - name: localdir
+        emptyDir: {}
 {{- with .Volumes }}
 {{ toYaml . | indent 6 }}
 {{- end }}

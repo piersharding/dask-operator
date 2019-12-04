@@ -16,13 +16,20 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
+	"math/rand"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	core "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	analyticsv1 "github.com/piersharding/dask-operator/api/v1"
+	dtypes "github.com/piersharding/dask-operator/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -77,3 +84,71 @@ var _ = AfterSuite(func() {
 	err := testEnv.Stop()
 	Expect(err).ToNot(HaveOccurred())
 })
+
+// SetupTest will set up a testing environment.
+// This includes:
+// * creating a Namespace to be used during the test
+// * starting the 'MyKindReconciler'
+// * stopping the 'MyKindReconciler" after the test ends
+// Call this function at the start of each of your tests.
+func SetupTest(ctx context.Context) *core.Namespace {
+	var stopCh chan struct{}
+	ns := &core.Namespace{}
+
+	BeforeEach(func() {
+		stopCh = make(chan struct{})
+		*ns = core.Namespace{
+			ObjectMeta: metav1.ObjectMeta{Name: "testns-" + randStringRunes(5)},
+		}
+
+		err := k8sClient.Create(ctx, ns)
+		Expect(err).NotTo(HaveOccurred(), "failed to create test namespace")
+
+		mgr, err := ctrl.NewManager(cfg, ctrl.Options{})
+		Expect(err).NotTo(HaveOccurred(), "failed to create manager")
+
+		// controller := &DaskReconciler{
+		// 	Client:   mgr.GetClient(),
+		// 	Log:      logf.Log,
+		// 	Recorder: mgr.GetEventRecorderFor("dask-controller"),
+		// }
+
+		controller := &DaskReconciler{
+			Client:    mgr.GetClient(),
+			Log:       logf.Log.WithName("controllers").WithName("Dask"),
+			CustomLog: dtypes.CustomLogger{Logger: ctrl.Log.WithName("controllers").WithName("Dask")},
+			Scheme:    mgr.GetScheme(),
+			Recorder:  mgr.GetEventRecorderFor("dask-controller"),
+		}
+		err = controller.SetupWithManager(mgr)
+		Expect(err).NotTo(HaveOccurred(), "failed to setup controller")
+
+		go func() {
+			err := mgr.Start(stopCh)
+			Expect(err).NotTo(HaveOccurred(), "failed to start manager")
+		}()
+	})
+
+	AfterEach(func() {
+		close(stopCh)
+
+		err := k8sClient.Delete(ctx, ns)
+		Expect(err).NotTo(HaveOccurred(), "failed to delete test namespace")
+	})
+
+	return ns
+}
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyz1234567890")
+
+func randStringRunes(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}

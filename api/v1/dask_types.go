@@ -30,19 +30,19 @@ type DaskSpec struct {
 
 	// Include Jupyter Notebook in deployment: true/false
 	// +optional
-	Jupyter *bool `json:"jupyter,omitempty"`
+	Jupyter bool `json:"jupyter,omitempty"`
 
 	// +kubebuilder:validation:Default=false
 
 	// Deploy workers like a DaemonSet - scattered one per node
 	// +optional
-	Daemon *bool `json:"daemon,omitempty"`
+	Daemon bool `json:"daemon,omitempty"`
 
-	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Minimum=0
 
-	// Number of workers to spawn
+	// Number of workers to spawn - default will be 5
 	// +optional
-	Replicas *int32 `json:"replicas"`
+	Replicas int32 `json:"replicas,omitempty"`
 
 	// +kubebuilder:validation:MinLength=0
 	// +kubebuilder:validation:Default=daskdev/dask:latest
@@ -157,16 +157,14 @@ type DaskStatus struct {
 	Resources string `json:"resources"`
 }
 
-// +kubebuilder:printcolumn:name="Components",type="integer",JSONPath=".status.replicas",description="The number of Components Requested in the Dask",priority="0"
-// +kubebuilder:printcolumn:name="Succeeded",type="integer",JSONPath=".status.succeeded",description="The number of Components Launched in the Dask",priority="0"
-// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="The number of Components Requested in the Dask",priority="0"
-// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="Status of the Dask",priority="0"
-// +kubebuilder:printcolumn:name="Resources",type="string",JSONPath=".status.resources",description="Resource details of the Dask",priority="1"
-
+// Dask is the Schema for the dasks API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-
-// Dask is the Schema for the dasks API
+// +kubebuilder:printcolumn:name="Components",type="integer",JSONPath=".status.replicas",description="The number of Components Requested in the Dask",priority=0
+// +kubebuilder:printcolumn:name="Succeeded",type="integer",JSONPath=".status.succeeded",description="The number of Components Launched in the Dask",priority=0
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="The number of Components Requested in the Dask",priority=0
+// +kubebuilder:printcolumn:name="State",type="string",JSONPath=".status.state",description="Status of the Dask",priority=0
+// +kubebuilder:printcolumn:name="Resources",type="string",JSONPath=".status.resources",description=" Resource details of the Dask",priority=1
 type Dask struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -54,14 +54,14 @@ func SetConfig(dask analyticsv1.Dask) DaskContext {
 		JupyterIngress:   dask.Spec.JupyterIngress,
 		SchedulerIngress: dask.Spec.SchedulerIngress,
 		MonitorIngress:   dask.Spec.MonitorIngress,
-		Daemon:           false,
-		Jupyter:          false,
+		Daemon:           dask.Spec.Daemon,
+		Jupyter:          dask.Spec.Jupyter,
 		Namespace:        dask.Namespace,
 		Name:             dask.Name,
 		ServiceType:      "ClusterIP",
 		Port:             8786,
 		BokehPort:        8787,
-		Replicas:         *dask.Spec.Replicas,
+		Replicas:         dask.Spec.Replicas,
 		Image:            dask.Spec.Image,
 		PullSecrets:      dask.Spec.PullSecrets,
 		PullPolicy:       dask.Spec.ImagePullPolicy,
@@ -78,14 +78,19 @@ func SetConfig(dask analyticsv1.Dask) DaskContext {
 		Worker:           dask.Spec.Worker,
 		Notebook:         dask.Spec.Notebook}
 
-	if dask.Spec.Daemon != nil {
-		context.Daemon = *dask.Spec.Daemon
-	}
+	// if dask.Spec.Daemon != nil {
+	// 	context.Daemon = *dask.Spec.Daemon
+	// }
 
-	if dask.Spec.Jupyter != nil {
-		context.Jupyter = *dask.Spec.Jupyter
-	}
+	// if dask.Spec.Jupyter != nil {
+	// 	context.Jupyter = *dask.Spec.Jupyter
+	// }
 
+	// default of 5 replicas for workers
+	if dask.Spec.Replicas == 0 {
+		context.Replicas = 5
+
+	}
 	if context.MonitorIngress == "" {
 		context.MonitorIngress = "monitor.dask.local"
 	}
@@ -93,17 +98,6 @@ func SetConfig(dask analyticsv1.Dask) DaskContext {
 	if context.JupyterPassword == "" {
 		context.JupyterPassword = "password"
 	}
-
-	//   // overlay
-	// if dcontext.Notebook != nil {
-	// 	result, err := json.Marshal(&dcontext.Notebook)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	if err := json.Unmarshal([]byte(result), &dcontext); err != nil {
-	// 		return nil, err
-	// 	}
-	// }
 
 	log.Debugf("context: %+v", context)
 	return context
@@ -175,6 +169,8 @@ type CustomLogger struct {
 
 // WithValues helper
 func (log *CustomLogger) WithValues(keysAndValues ...interface{}) CustomLogger {
+	// fmt.Fprintf(os.Stderr, "in CustomLogger: %+v #\n", keysAndValues)
+	// fmt.Fprintf(os.Stderr, "in CustomLogger: %+v #\n", log)
 	return CustomLogger{Logger: log.Logger.WithValues(keysAndValues...)}
 }
 

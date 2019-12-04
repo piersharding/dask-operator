@@ -36,7 +36,6 @@ import (
 	analyticsv1 "github.com/piersharding/dask-operator/api/v1"
 	"github.com/piersharding/dask-operator/models"
 
-	// "github.com/piersharding/dask-operator/models"
 	dtypes "github.com/piersharding/dask-operator/types"
 )
 
@@ -273,6 +272,40 @@ func (r *DaskReconciler) resourceDetails(dcontext dtypes.DaskContext) (string, e
 	return fmt.Sprintf("%s - %s - %s", resIngress, resSchedulerService, resJupyterService), nil
 }
 
+// look up one of the deployments
+func (r *DaskReconciler) getDeployment(namespace string, name string) (*appsv1.Deployment, error) {
+	ctx := context.Background()
+	log := r.Log.WithValues("looking for deployment", name)
+	deploymentKey := client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}
+	deployment := appsv1.Deployment{}
+	if err := r.Get(ctx, deploymentKey, &deployment); err != nil {
+		Infof(log, "deployment.Get Error: %+v\n", err.Error())
+		return nil, err
+	}
+	return &deployment, nil
+}
+
+// read back the status info for the Ingress resource
+func (r *DaskReconciler) getIngress(namespace string, name string) (*extv1beta1.Ingress, error) {
+	ctx := context.Background()
+	log := r.Log.WithValues("looking for ingress", name)
+	objkey := client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}
+
+	ingress := extv1beta1.Ingress{}
+	if err := r.Get(ctx, objkey, &ingress); err != nil {
+		Errorf(log, err, "ingressStatus.Get Error: %+v\n", err.Error())
+		return nil, err
+	}
+
+	return &ingress, nil
+}
+
 // Reconcile main reconcile loop
 func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -280,7 +313,6 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	clog := r.CustomLog.WithValues("dask", req.NamespacedName)
 	_ = clog
 
-	// your logic here
 	var dask analyticsv1.Dask
 	if err := r.Get(ctx, req.NamespacedName, &dask); err != nil {
 		log.Info("unable to fetch Dask(delete in progress?): " + err.Error())
@@ -293,6 +325,7 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var currentSchedulerDeployment *appsv1.Deployment
 	var currentWorkerDeployment *appsv1.Deployment
 	var currentJupyterDeployment *appsv1.Deployment
+	var currentIngress *extv1beta1.Ingress
 
 	dask.Status.Replicas = 0
 	dask.Status.Succeeded = 0
@@ -305,27 +338,58 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if client.IgnoreNotFound(err) != nil {
 			return ctrl.Result{}, err
 		}
-	} else {
-		for _, deployment := range childDeployments.Items {
-			dask.Status.Replicas++
-			if deployment.Status.ReadyReplicas == deployment.Status.Replicas {
-				dask.Status.Succeeded++
-			}
-			if strings.HasPrefix(deployment.Name, "dask-scheduler-") {
-				currentSchedulerDeployment = &deployment
-			} else if strings.HasPrefix(deployment.Name, "dask-worker-") {
-				currentWorkerDeployment = &deployment
-			} else if strings.HasPrefix(deployment.Name, "jupyter-notebook-") {
-				currentJupyterDeployment = &deployment
-			} else {
-				log.Error(errors.New("unable to parse Deployment type"), "deployment", &deployment)
-			}
-		}
 	}
 
-	_ = currentSchedulerDeployment
-	_ = currentWorkerDeployment
-	_ = currentJupyterDeployment
+	currentSchedulerDeployment, _ = r.getDeployment(dask.Namespace, "dask-scheduler-"+dask.Name)
+	currentWorkerDeployment, _ = r.getDeployment(dask.Namespace, "dask-worker-"+dask.Name)
+	currentJupyterDeployment, _ = r.getDeployment(dask.Namespace, "jupyter-notebook-"+dask.Name)
+	currentIngress, _ = r.getIngress(dask.Namespace, "dask-"+dask.Name)
+	// deploymentKey := client.ObjectKey{
+	// 	Namespace: dask.Namespace,
+	// 	Name:      "dask-scheduler-" + dask.Name,
+	// }
+	// // log := r.Log.WithValues("looking for worker deployment", deploymentKey)
+	// // currentSchedulerDeployment := appsv1.Deployment{}
+	// if err = r.Get(ctx, deploymentKey, &currentSchedulerDeployment); err != nil {
+	// 	Infof(log, "currentSchedulerDeployment.Get Error: %+v/%+v\n", err.Error(), currentSchedulerDeployment)
+	// 	// return ctrl.Result{}, err
+	// }
+	// deploymentKey = client.ObjectKey{
+	// 	Namespace: dask.Namespace,
+	// 	Name:      "dask-worker-" + dask.Name,
+	// }
+	// // currentWorkerDeployment := appsv1.Deployment{}
+	// if err = r.Get(ctx, deploymentKey, &currentWorkerDeployment); err != nil {
+	// 	Infof(log, "currentWorkerDeployment.Get Error: %+v\n", err.Error())
+	// }
+	// deploymentKey = client.ObjectKey{
+	// 	Namespace: dask.Namespace,
+	// 	Name:      "jupyter-notebook-" + dask.Name,
+	// }
+	// // currentJupyterDeployment := appsv1.Deployment{}
+	// if err = r.Get(ctx, deploymentKey, &currentJupyterDeployment); err != nil {
+	// 	Infof(log, "currentJupyterDeployment.Get Error: %+v\n", err.Error())
+	// }
+
+	// for _, deployment := range childDeployments.Items {
+	// 	dask.Status.Replicas++
+	// 	if deployment.Status.ReadyReplicas == deployment.Status.Replicas {
+	// 		dask.Status.Succeeded++
+	// 	}
+	// 	if strings.HasPrefix(deployment.Name, "dask-scheduler-") {
+	// 		currentSchedulerDeployment = &deployment
+	// 	} else if strings.HasPrefix(deployment.Name, "dask-worker-") {
+	// 		currentWorkerDeployment = &deployment
+	// 	} else if strings.HasPrefix(deployment.Name, "jupyter-notebook-") {
+	// 		currentJupyterDeployment = &deployment
+	// 	} else {
+	// 		log.Error(errors.New("unable to parse Deployment type"), "deployment", &deployment)
+	// 	}
+	// }
+
+	// _ = currentSchedulerDeployment
+	// _ = currentWorkerDeployment
+	// _ = currentJupyterDeployment
 
 	// Compute status based on latest observed state.
 	if dask.Status.Replicas == dask.Status.Succeeded {
@@ -486,14 +550,37 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return ctrl.Result{}, err
 		}
 		r.Recorder.Eventf(&dask, corev1.EventTypeNormal, "Created", "Created Worker deployment %q", workerDeployment.Name)
+	} else {
+		// deploymentKey := client.ObjectKey{
+		// 	Namespace: dask.Namespace,
+		// 	Name:      "dask-worker-" + dask.Name,
+		// }
+
+		// log := r.Log.WithValues("looking for worker deployment", deploymentKey)
+
+		// currentWorkerDeployment := appsv1.Deployment{}
+		// if err := r.Get(ctx, deploymentKey, &currentWorkerDeployment); err != nil {
+		// 	Errorf(log, err, "currentWorkerDeployment.Get Error: %+v\n", err.Error())
+		// 	return ctrl.Result{}, err
+		// }
+		// check the replicas
+		if *currentWorkerDeployment.Spec.Replicas != dcontext.Replicas {
+			*currentWorkerDeployment.Spec.Replicas = dcontext.Replicas
+			if err := r.Update(ctx, currentWorkerDeployment); err != nil {
+				log.Error(err, "unable to update Deployment for Dask", "Deployment", currentWorkerDeployment)
+				return ctrl.Result{}, err
+			}
+			r.Recorder.Eventf(&dask, corev1.EventTypeNormal, "Updated", "Updated Worker deployment %q", currentWorkerDeployment.Name)
+		}
 	}
 
 	// if required, create Ingress for scheduler and jupyter
 	Debugf(log, "###### Create Ingress #######")
-	if currentSchedulerDeployment == nil || currentJupyterDeployment == nil {
+	if currentIngress == nil {
 		if dcontext.JupyterIngress != "" || dcontext.SchedulerIngress != "" {
 
 			daskIngress, err := models.DaskIngress(dcontext)
+
 			if err != nil {
 				Errorf(log, err, "DaskIngress Error: %+v\n", err)
 				dask.Status.State = fmt.Sprintf("DaskIngress Error: %+v\n", err)

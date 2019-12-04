@@ -46,6 +46,7 @@ spec:
   image: daskdev/dask:latest
   jupyterIngress: notebook.dask.local 
   schedulerIngress: scheduler.dask.local 
+  monitorIngress: monitor.dask.local
   imagePullPolicy: IfNotPresent
   # pass any of the following Pod constructs
   # which will be added to all Pods in the cluster:
@@ -94,6 +95,34 @@ NAME                          COMPONENTS   SUCCEEDED   AGE   STATE     RESOURCES
 dask.piersharding.com/app-1   3            3           31s   Running   Ingress: dask-app-1 IP: 192.168.86.47, Hosts: http://notebook.dask.local/, http://scheduler.dask.local
 / status: {"loadBalancer":{"ingress":[{"ip":"192.168.86.47"}]}} - Service: dask-scheduler-app-1 Type: ClusterIP, IP: 10.108.30.61, Ports: scheduler/8786,bokeh/8787 status: {
 "loadBalancer":{}} - Service: jupyter-notebook-app-1 Type: ClusterIP, IP: 10.100.155.117, Ports: jupyter/8888 status: {"loadBalancer":{}}
+```
+
+### Simple test
+
+Create the following cells, and run while watching the monitors at http://monitor.dask.local :
+
+Connect to the cluster
+```Jupyter Notebook
+import os
+from dask.distributed import Client
+client = Client(os.environ['DASK_SCHEDULER'])
+client
+```
+
+```Jupyter Notebook
+import dask.array as da
+x = da.random.random((10000, 10000), chunks=(1000, 1000))
+x
+```
+
+```Jupyter Notebook
+y = x + x.T
+z = y[::2, 5000:].mean(axis=1)
+z
+```
+
+```Jupyter Notebook
+z.compute()
 ```
 
 ### Clean up
