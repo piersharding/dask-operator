@@ -11,6 +11,7 @@ CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 # Controller runtime arguments
 CONTROLLER_ARGS ?= 
+TEST_USE_EXISTING_CLUSTER ?= false
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -27,7 +28,14 @@ all: manifests manager  ## run all
 
 # Run tests
 test: generate fmt vet manifests ## run tests
-	go test ./... -coverprofile cover.out
+	# go test ./... -coverprofile cover.out
+	# go test ./controllers/... -coverprofile cover.out
+	rm -rf cover.* cover
+	mkdir -p cover
+	TEST_USE_EXISTING_CLUSTER=$(TEST_USE_EXISTING_CLUSTER) go test ./api/... ./types/... ./utils/... ./models/... ./controllers/... -coverprofile cover.out.tmp
+	cat cover.out.tmp | grep -v "XX_generated.deepcopy.go" > cover.out
+	go tool cover -html=cover.out -o cover/cover.html
+	rm -f cover.out cover.out.tmp cover.json
 
 # Build manager binary
 manager: generate fmt vet

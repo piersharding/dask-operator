@@ -28,10 +28,10 @@ make deployac
 For the full Dask resource interface documentation see:
 ```
 kubectl get crds dasks.analytics.piersharding.com -o yaml \
-   dasks.analytics.piersharding.comdasks.analytics.piersharding.com
+   dasks.analytics.piersharding.com
 ```
 
-See [config/samples/analytics_v1_dask.yaml](config/samples/analytics_v1_dask.yaml) for a detailed example.
+See [config/samples/analytics_v1_dask_simple.yaml](config/samples/analytics_v1_dask_simple.yaml) for a detailed example.
 
 ```sh
 cat <<EOF | kubectl apply -f -
@@ -40,15 +40,15 @@ kind: Dask
 metadata:
   name: app-1
 spec:
-  # daemon: true # to force one worker per node
+  # daemon: true # to force one worker per node - excess replicas will not start
   jupyter: true # add a Jupyter notebook server to the cluster
-  replicas: 3 # no. of workers
+  replicas: 5 # no. of workers
   image: daskdev/dask:latest
   jupyterIngress: notebook.dask.local 
   schedulerIngress: scheduler.dask.local 
   monitorIngress: monitor.dask.local
-  imagePullPolicy: IfNotPresent
-  # pass any of the following Pod constructs
+  imagePullPolicy: Always
+  # pass any of the following Pod Container constructs
   # which will be added to all Pods in the cluster:
   # env:
   # volumes:
@@ -58,7 +58,10 @@ spec:
   # nodeSelector:
   # tolerations:
   # add any of the above elements to notebook:, scheduler: and worker: 
-  # to specialise for each
+  # to specialise for each eg:
+  # worker:
+  #   env: {}
+  # will configure worker specific env vars
 EOF
 ```
 
@@ -101,13 +104,15 @@ dask.piersharding.com/app-1   3            3           31s   Running   Ingress: 
 
 Create the following cells, and run while watching the monitors at http://monitor.dask.local :
 
-Connect to the cluster
+Create a jupyter notebook in http://notebook.dask.local/tree/home/jovyan/work
 ```Jupyter Notebook
 import os
 from dask.distributed import Client
 client = Client(os.environ['DASK_SCHEDULER'])
 client
 ```
+
+Now create a sample workload and trigger the computation:
 
 ```Jupyter Notebook
 import dask.array as da

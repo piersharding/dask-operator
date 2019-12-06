@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package v1
 
 import (
 	"context"
@@ -27,10 +27,8 @@ import (
 	. "github.com/onsi/gomega"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 
-	analyticsv1 "github.com/piersharding/dask-operator/api/v1"
-	dtypes "github.com/piersharding/dask-operator/types"
+	// analyticsv1 "github.com/piersharding/dask-operator/api/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -51,7 +49,7 @@ func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
 
 	RunSpecsWithDefaultAndCustomReporters(t,
-		"Controller Suite",
+		"v1 Suite",
 		[]Reporter{envtest.NewlineReporter{}})
 }
 
@@ -66,17 +64,18 @@ var _ = BeforeSuite(func(done Done) {
 		}
 	} else {
 		testEnv = &envtest.Environment{
-			CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "bases")},
+			CRDDirectoryPaths: []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		}
 	}
 
 	var err error
+
+	err = SchemeBuilder.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+
 	cfg, err = testEnv.Start()
 	Expect(err).ToNot(HaveOccurred())
 	Expect(cfg).ToNot(BeNil())
-
-	err = analyticsv1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:scheme
 
@@ -112,23 +111,6 @@ func SetupTest(ctx context.Context) *core.Namespace {
 		err := k8sClient.Create(ctx, ns)
 		Expect(err).NotTo(HaveOccurred(), "failed to create test namespace")
 
-		mgr, err := ctrl.NewManager(cfg, ctrl.Options{})
-		Expect(err).NotTo(HaveOccurred(), "failed to create manager")
-
-		controller := &DaskReconciler{
-			Client:    mgr.GetClient(),
-			Log:       logf.Log.WithName("controllers").WithName("Dask"),
-			CustomLog: dtypes.CustomLogger{Logger: ctrl.Log.WithName("controllers").WithName("Dask")},
-			Scheme:    mgr.GetScheme(),
-			Recorder:  mgr.GetEventRecorderFor("dask-controller"),
-		}
-		err = controller.SetupWithManager(mgr)
-		Expect(err).NotTo(HaveOccurred(), "failed to setup controller")
-
-		go func() {
-			err := mgr.Start(stopCh)
-			Expect(err).NotTo(HaveOccurred(), "failed to start manager")
-		}()
 	})
 
 	AfterEach(func() {
