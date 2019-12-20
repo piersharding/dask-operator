@@ -115,6 +115,7 @@ type DaskSpec struct {
 	Notebook *DaskDeploymentSpec `json:"notebook,omitempty"`
 }
 
+// DaskDeploymentSpec - shared structure of configurable attributes
 type DaskDeploymentSpec struct {
 	// Specifies the Volumes.
 	// +optional

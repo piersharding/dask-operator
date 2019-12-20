@@ -4,6 +4,13 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig"
@@ -87,6 +94,7 @@ func ApplyTemplate(s string, context dtypes.DaskContext) (string, error) {
 	}
 
 	yamlData := tpl.String()
+	log.Infof("Rendered Template: %s\n", yamlData)
 	body, err := YamlToMap(yamlData)
 	if err != nil {
 		log.Debugf("YamlToMap Error: %+v\n", err)
@@ -102,4 +110,64 @@ func ApplyTemplate(s string, context dtypes.DaskContext) (string, error) {
 
 	log.Debugf("Output: %s\n", result)
 	return string(result), nil
+}
+
+// CheckJobScript - check what sort of script has been passed to the DaskJob
+func CheckJobScript(script string) (string, string, bool, error) {
+	// check Script - is it a notebook, script, file or URL
+	var (
+		scriptContent string
+		scriptType    string
+		mountedFile   bool
+		out           interface{}
+	)
+	scriptContent = ""
+	mountedFile = false
+	err := json.Unmarshal([]byte(script), &out)
+	if err != nil {
+		// string is not valid JSON - check for python code
+		matched, err := regexp.MatchString(`(?m)^#!\/usr\/bin\/env python\n`, script)
+		fmt.Println(matched, err)
+		if err != nil || matched != true {
+			// string is not a valid py script - check for URl and file
+			u, err := url.Parse(script)
+			if err != nil {
+				// not a valid URL or filename - final test, throw out this Job
+				return "", "", mountedFile, fmt.Errorf("Cannot determine script - .ipynb, py, URL or file: %s#", script)
+			} else {
+				ext := strings.Replace(filepath.Ext(u.Path), ".", "", -1)
+				if ext != "ipynb" && ext != "py" {
+					return "", "", mountedFile, fmt.Errorf("Cannot determine script (suffix) - .ipynb, py, URL or file: %s#%s", script, ext)
+				}
+				scriptType = ext
+				if u.Scheme == "http" || u.Scheme == "https" {
+					resp, err := http.Get(script)
+					if err != nil {
+						return "", "", mountedFile, fmt.Errorf("Cannot resolve script (%s)", script)
+					} else {
+						defer resp.Body.Close()
+						body, err := ioutil.ReadAll(resp.Body)
+						if err != nil {
+							return "", "", mountedFile, fmt.Errorf("Failed to HTTP get script (%s)", script)
+						} else {
+							scriptContent = string(body)
+						}
+					}
+				} else {
+					// an unknown local file
+					mountedFile = true
+				}
+			}
+		} else {
+			// has #!python line, so it's probably a script
+			scriptType = "py"
+			scriptContent = script
+		}
+
+	} else {
+		// valid JSON, so it's probably a notebook
+		scriptType = "ipynb"
+		scriptContent = script
+	}
+	return scriptType, scriptContent, mountedFile, nil
 }

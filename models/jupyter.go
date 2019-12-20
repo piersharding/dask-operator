@@ -84,6 +84,8 @@ spec:
       - name: jupyter
         image: "{{ .JupyterImage }}"
         imagePullPolicy: {{ .PullPolicy }}
+        securityContext:
+          runAsUser: 0
         command:
           - /start-jupyter-notebook.sh
         env:

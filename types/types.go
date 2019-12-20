@@ -28,6 +28,11 @@ type DaskContext struct {
 	Port             int
 	BokehPort        int
 	Replicas         int32
+	Cluster          string
+	Script           string
+	ScriptType       string
+	ScriptContents   string
+	MountedFile      bool
 	Image            string
 	Repository       string
 	Tag              string
@@ -63,6 +68,10 @@ func SetConfig(dask analyticsv1.Dask) DaskContext {
 		BokehPort:        8787,
 		Replicas:         dask.Spec.Replicas,
 		Image:            dask.Spec.Image,
+		Script:           "/notebook.ipynb",
+		ScriptType:       "",
+		ScriptContents:   "",
+		MountedFile:      false,
 		PullSecrets:      dask.Spec.PullSecrets,
 		PullPolicy:       dask.Spec.ImagePullPolicy,
 		NodeSelector:     dask.Spec.NodeSelector,
@@ -159,6 +168,21 @@ func (context *DaskContext) applySpecifics(specific *analyticsv1.DaskDeploymentS
 		if specific.Resources == nil {
 			context.Resources = nil
 		}
+	}
+}
+
+// SetJobConfig - add in DaskJob specific config elements
+func (context *DaskContext) SetJobConfig(daskjob *analyticsv1.DaskJob) {
+	if daskjob != nil {
+		if daskjob.Spec.Image != "" {
+			context.Image = daskjob.Spec.Image
+		}
+		if daskjob.Spec.ImagePullPolicy == "" {
+			context.PullPolicy = daskjob.Spec.ImagePullPolicy
+		}
+		context.Name = daskjob.Name
+		context.Cluster = daskjob.Spec.Cluster
+		context.Script = daskjob.Spec.Script
 	}
 }
 

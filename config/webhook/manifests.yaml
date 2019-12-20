@@ -24,6 +24,24 @@ webhooks:
     - UPDATE
     resources:
     - dasks
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-analytics-piersharding-com-v1-daskjob
+  failurePolicy: Fail
+  name: mdaskjob.piersharding.com
+  rules:
+  - apiGroups:
+    - analytics.piersharding.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - daskjobs
 
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
@@ -50,3 +68,21 @@ webhooks:
     - UPDATE
     resources:
     - dasks
+- clientConfig:
+    caBundle: Cg==
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-analytics-piersharding-com-v1-daskjob
+  failurePolicy: Fail
+  name: vdaskjob.piersharding.com
+  rules:
+  - apiGroups:
+    - analytics.piersharding.com
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - daskjobs

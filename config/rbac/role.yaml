@@ -9,6 +9,26 @@ rules:
 - apiGroups:
   - analytics.piersharding.com
   resources:
+  - daskjobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - analytics.piersharding.com
+  resources:
+  - daskjobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - analytics.piersharding.com
+  resources:
   - dasks
   verbs:
   - create
@@ -44,6 +64,37 @@ rules:
   - deployments/status
   verbs:
   - get
+- apiGroups:
+  - apps
+  resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - jobs/status
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
 - apiGroups:
   - ""
   resources:

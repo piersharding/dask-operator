@@ -1,0 +1,9 @@
+apiVersion: analytics.piersharding.com/v1
+kind: DaskJob
+metadata:
+  name: daskjob-app1-http-ipynb
+spec:
+  cluster: app1-simple
+  image: jupyter/scipy-notebook:latest
+  imagePullPolicy: IfNotPresent
+  script: https://raw.githubusercontent.com/dask/dask-examples/master/dataframe.ipynb

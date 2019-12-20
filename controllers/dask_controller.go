@@ -40,8 +40,8 @@ import (
 )
 
 var (
-	jobOwnerKey = ".metadata.controller"
-	apiGVStr    = analyticsv1.GroupVersion.String()
+	daskOwnerKey = ".metadata.controller"
+	daskApiGVStr = analyticsv1.GroupVersion.String()
 )
 
 // +kubebuilder:rbac:groups=analytics.piersharding.com,resources=dasks,verbs=get;list;watch;create;update;patch;delete
@@ -102,9 +102,9 @@ func (r *DaskReconciler) ingressStatus(dcontext dtypes.DaskContext) (string, err
 		return "", err
 	}
 	// ...make sure it's a Dask...
-	if owner.APIVersion != apiGVStr || owner.Kind != "Dask" {
+	if owner.APIVersion != daskApiGVStr || owner.Kind != "Dask" {
 		err := errors.New("ingressStatus.Get Error: wrong kind/owner")
-		log.Error(err, fmt.Sprintf("ingressStatus.Get Error: [%s] wrong kind/owner: %s/%s", apiGVStr, owner.Kind, owner.APIVersion))
+		log.Error(err, fmt.Sprintf("ingressStatus.Get Error: [%s] wrong kind/owner: %s/%s", daskApiGVStr, owner.Kind, owner.APIVersion))
 		return "", err
 	}
 
@@ -160,7 +160,7 @@ func (r *DaskReconciler) serviceStatus(dcontext dtypes.DaskContext, name string)
 		return "", err
 	}
 	// ...make sure it's a Dask...
-	if owner.APIVersion != apiGVStr || owner.Kind != "Dask" {
+	if owner.APIVersion != daskApiGVStr || owner.Kind != "Dask" {
 		err := errors.New("serviceStatus.Get Error: wrong kind/owner")
 		log.Error(err, "serviceStatus.Get Error: wrong kind/owner", owner)
 		return "", err
@@ -220,7 +220,7 @@ func (r *DaskReconciler) deploymentStatus(dcontext dtypes.DaskContext, name stri
 		return "", err
 	}
 	// ...make sure it's a Dask...
-	if owner.APIVersion != apiGVStr || owner.Kind != "Dask" {
+	if owner.APIVersion != daskApiGVStr || owner.Kind != "Dask" {
 		err := errors.New("deploymentStatus.Get Error: wrong kind/owner")
 		log.Error(err, "deploymentStatus.Get Error: wrong kind/owner", owner)
 		return "", err
@@ -356,7 +356,7 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	dask.Status.State = "Building"
 
 	var childDeployments appsv1.DeploymentList
-	if err := r.List(ctx, &childDeployments, client.InNamespace(req.Namespace), client.MatchingFields{jobOwnerKey: req.Name}); err != nil {
+	if err := r.List(ctx, &childDeployments, client.InNamespace(req.Namespace), client.MatchingFields{daskOwnerKey: req.Name}); err != nil {
 		log.Error(err, "unable to list child Deployments")
 		if client.IgnoreNotFound(err) != nil {
 			return ctrl.Result{}, err
@@ -580,7 +580,7 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 // SetupWithManager bootstrap reconciler
 func (r *DaskReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
-	if err := mgr.GetFieldIndexer().IndexField(&appsv1.Deployment{}, jobOwnerKey, func(rawObj runtime.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(&appsv1.Deployment{}, daskOwnerKey, func(rawObj runtime.Object) []string {
 		// grab the Deployment object, extract the owner...
 		deployment := rawObj.(*appsv1.Deployment)
 		owner := metav1.GetControllerOf(deployment)
@@ -588,7 +588,7 @@ func (r *DaskReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return nil
 		}
 		// ...make sure it's a Dask ...
-		if owner.APIVersion != apiGVStr || owner.Kind != "Dask" {
+		if owner.APIVersion != daskApiGVStr || owner.Kind != "Dask" {
 			return nil
 		}
 

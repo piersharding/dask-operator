@@ -123,7 +123,8 @@ show: namespace manifests secret getcert ## show deploy
 
 # Install CRDs into a cluster
 install: manifests ## install CRDs
-	kustomize build config/crd | kubectl create -f -
+	kustomize build config/crd | kubectl create -f - || \
+	(kustomize build config/crd | kubectl delete -f -; kustomize build config/crd | kubectl create -f -)
 
 # UnInstall CRDs into a cluster
 uninstall: ## uninstall CRDs

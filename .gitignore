@@ -6,3 +6,4 @@ config/webhook/secret/tls.*
 build-arl-libs-image.sh
 cover.out
 tmp.yaml
+_tmp/

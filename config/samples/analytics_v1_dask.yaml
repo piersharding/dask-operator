@@ -57,18 +57,18 @@ spec:
   # notebook:
   #   env:
   #     - name: PYTHONPATH
-  #       value: /pylibs:/arl
+  #       value: /pylibs:/app
   #     - name: ARL
-  #       value: /arl
+  #       value: /app
   #     - name: ARL_DASK_SCHEDULER
   #       value: dask-scheduler-app1:8786
   #     - name: CRAZY_VAR
   #       value: dask-scheduler-app1:8786
   env:
     - name: PYTHONPATH
-      value: /pylibs:/arl
+      value: /pylibs:/app
     - name: ARL
-      value: /arl
+      value: /app
     - name: ARL_DASK_SCHEDULER
       value: dask-scheduler-app1:8786
   volumes:
@@ -84,7 +84,7 @@ spec:
       persistentVolumeClaim:
         claimName: pylibs
   volumeMounts:
-    - mountPath: /arl
+    - mountPath: /app
       readOnly: false
       name: arl
     - mountPath: "/pylibs"

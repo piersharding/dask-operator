@@ -134,6 +134,25 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	if err = (&controllers.DaskJobReconciler{
+		Client:    mgr.GetClient(),
+		Log:       ctrl.Log.WithName("controllers").WithName("DaskJob"),
+		CustomLog: dtypes.CustomLogger{Logger: ctrl.Log.WithName("controllers").WithName("DaskJob")},
+		Scheme:    mgr.GetScheme(),
+		Recorder:  mgr.GetEventRecorderFor("daskjob-controller"),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "DaskJob")
+		os.Exit(1)
+	}
+
+	if enableWebhooks || os.Getenv("ENABLE_WEBHOOKS") == "true" {
+		if err = (&analyticsv1.DaskJob{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "DaskJob")
+			os.Exit(1)
+		}
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	setupLog.Info("starting manager")

@@ -2,7 +2,7 @@
 apiVersion: analytics.piersharding.com/v1
 kind: Dask
 metadata:
-  name: app1
+  name: app1-simple
 spec:
   # daemon: true
   jupyter: true

@@ -1,7 +1,10 @@
-version: "2"
 domain: piersharding.com
 repo: github.com/piersharding/dask-operator
 resources:
 - group: analytics
-  version: v1
   kind: Dask
+  version: v1
+- group: analytics
+  kind: DaskJob
+  version: v1
+version: "2"
