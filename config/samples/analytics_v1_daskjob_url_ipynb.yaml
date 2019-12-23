@@ -6,4 +6,4 @@ spec:
   cluster: app1-simple
   image: jupyter/scipy-notebook:latest
   imagePullPolicy: IfNotPresent
-  script: https://raw.githubusercontent.com/dask/dask-examples/master/dataframe.ipynb
+  script: https://raw.githubusercontent.com/piersharding/dask-operator/master/notebooks/array.ipynb

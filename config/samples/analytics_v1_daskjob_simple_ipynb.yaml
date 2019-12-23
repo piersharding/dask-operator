@@ -4,6 +4,7 @@ metadata:
   name: daskjob-app1-http-ipynb
 spec:
   cluster: app1-simple
+  report: true
   image: jupyter/scipy-notebook:latest
   imagePullPolicy: IfNotPresent
   script: |

@@ -41,6 +41,14 @@ type DaskJobSpec struct {
 	// +optional
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
 
+	// Save the report output in /reports to a persistent volume: true/false
+	// +optional
+	Report bool `json:"report,omitempty"`
+
+	//Report StorageClass - default: standard
+	// +optional
+	ReportStorageClass string `json:"reportStorageClass,omitempty"`
+
 	// Specifies the Volumes.
 	// +optional
 	Volumes []corev1.Volume `json:"volumes,omitempty"`

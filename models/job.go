@@ -7,7 +7,44 @@ import (
 	dtypes "github.com/piersharding/dask-operator/types"
 	"github.com/piersharding/dask-operator/utils"
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 )
+
+// DaskJob generates the Job description for
+// the Dask Job
+func DaskJobReportStorage(dcontext dtypes.DaskContext) (*corev1.PersistentVolumeClaim, error) {
+
+	const daskJobReportStorage = `
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: daskjob-report-pvc-{{ .Name }}
+  namespace: {{ .Namespace }}
+  labels:
+    app.kubernetes.io/name: daskjob-job-report-pvc
+    app.kubernetes.io/instance: "{{ .Name }}"
+    app.kubernetes.io/managed-by: DaskJobController
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: {{ .ReportStorageClass }}
+  resources:
+    requests:
+      storage: 1Gi
+`
+
+	result, err := utils.ApplyTemplate(daskJobReportStorage, dcontext)
+	if err != nil {
+		log.Debugf("ApplyTemplate Error: %+v\n", err)
+		return nil, err
+	}
+
+	pvc := &corev1.PersistentVolumeClaim{}
+	if err := json.Unmarshal([]byte(result), pvc); err != nil {
+		return nil, err
+	}
+	return pvc, err
+}
 
 // DaskJob generates the Job description for
 // the Dask Job
@@ -24,7 +61,7 @@ metadata:
     app.kubernetes.io/instance: "{{ .Name }}"
     app.kubernetes.io/managed-by: DaskJobController
 spec:
-  backoffLimit: 3
+  backoffLimit: 32
   completions: 1
   parallelism: 1
   template:
@@ -43,6 +80,8 @@ spec:
       {{- end }}
       containers:
       - name: scheduler
+        securityContext:
+          runAsUser: 0
         image: "{{ .Image }}"
         imagePullPolicy: {{ .PullPolicy }}
         command:
@@ -66,6 +105,10 @@ spec:
 {{ toYaml . | indent 10 }}
 {{- end }}
         volumeMounts:
+{{- if .Report }}
+        - name: reports
+          mountPath: /reports
+{{- end }}
         - mountPath: /start-dask-job.sh
           subPath: start-dask-job.sh
           name: dask-script
@@ -79,6 +122,11 @@ spec:
 {{ toYaml . | indent 8 }}
 {{- end }}
       volumes:
+{{- if .Report }}
+      - name: reports
+        persistentVolumeClaim:
+          claimName: daskjob-report-pvc-{{ .Name }}
+{{- end }}
       - configMap:
           name: daskjob-configs-{{ .Name }}
           defaultMode: 0777

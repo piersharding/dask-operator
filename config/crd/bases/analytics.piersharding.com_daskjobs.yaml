@@ -751,6 +751,13 @@ spec:
                 type: string
               description: Specifies the NodeSelector configuration.
               type: object
+            report:
+              description: 'Save the report output in /reports to a persistent volume:
+                true/false'
+              type: boolean
+            reportStorageClass:
+              description: 'Report StorageClass - default: standard'
+              type: string
             resources:
               description: Specifies the Environment variables.
               properties:

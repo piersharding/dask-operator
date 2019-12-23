@@ -88,6 +88,24 @@ func (r *DaskJobReconciler) getConfig(namespace string, name string) (*corev1.Co
 	return &config, nil
 }
 
+// read back the status info for the PVC resource
+func (r *DaskJobReconciler) getPVC(namespace string, name string) (*corev1.PersistentVolumeClaim, error) {
+	ctx := context.Background()
+	log := r.Log.WithValues("looking for PVC", name)
+	objkey := client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}
+
+	pvc := corev1.PersistentVolumeClaim{}
+	if err := r.Get(ctx, objkey, &pvc); err != nil {
+		Errorf(log, err, "pvcStatus.Get Error: %+v\n", err)
+		return nil, err
+	}
+
+	return &pvc, nil
+}
+
 // read back the status info for the Deployment resource
 func (r *DaskJobReconciler) jobStatus(dcontext dtypes.DaskContext, name string) (string, error) {
 
@@ -192,6 +210,7 @@ func (r *DaskJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var currentJob *batchv1.Job
 	var currentConfig *corev1.ConfigMap
 	var currentJobConfig *corev1.ConfigMap
+	var currentJobPVC *corev1.PersistentVolumeClaim
 
 	daskjob.Status.Succeeded = 0
 	daskjob.Status.Resources = ""
@@ -209,6 +228,7 @@ func (r *DaskJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	currentJob, _ = r.getJob(daskjob.Namespace, "daskjob-job-"+daskjob.Name, &daskjob)
 	currentConfig, _ = r.getConfig(dask.Namespace, "dask-configs-"+dask.Name)
 	currentJobConfig, _ = r.getConfig(daskjob.Namespace, "daskjob-configs-"+daskjob.Name)
+	currentJobPVC, _ = r.getPVC(daskjob.Namespace, "daskjob-report-pvc-"+daskjob.Name)
 
 	_ = currentJob
 	_ = currentConfig
@@ -286,6 +306,28 @@ func (r *DaskJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// create scheduler deployment and service
 	Debugf(log, "###### Create Job #######")
 	if currentJob == nil {
+		Debugf(log, "###### Create Job Report PVC #######")
+		if dcontext.Report && currentJobPVC == nil {
+			daskjobJobReportPVC, err := models.DaskJobReportStorage(dcontext)
+			if err != nil {
+				Errorf(log, err, "DaskJobReportStorage Error: %+v\n", err)
+				dask.Status.State = fmt.Sprintf("DaskJobReportStorage Error: %+v\n", err)
+				return ctrl.Result{}, err
+			}
+			daskjobJobReportPVC.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&daskjob, analyticsv1.GroupVersion.WithKind("DaskJob"))}
+			Debugf(log, "DaskJobReportStorage: %+v", *daskjobJobReportPVC)
+			// set the reference
+			if err := ctrl.SetControllerReference(&daskjob, daskjobJobReportPVC, r.Scheme); err != nil {
+				Errorf(log, err, "DaskJobReportStorage Error: %+v\n", err)
+				return ctrl.Result{}, err
+			}
+			// ...and create it on the cluster
+			if err := r.Create(ctx, daskjobJobReportPVC); err != nil {
+				log.Error(err, "unable to create Report PVC for DaskJob", "PVC", daskjobJobReportPVC)
+				return ctrl.Result{}, err
+			}
+			r.Recorder.Eventf(&daskjob, corev1.EventTypeNormal, "Created", "Created Job Report PVC %q", daskjobJobReportPVC.Name)
+		}
 		daskjobJob, err := models.DaskJob(dcontext)
 		if err != nil {
 			Errorf(log, err, "DaskJob Error: %+v\n", err)
@@ -341,5 +383,6 @@ func (r *DaskJobReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&analyticsv1.DaskJob{}).
 		Owns(&batchv1.Job{}).
 		Owns(&corev1.ConfigMap{}).
+		Owns(&corev1.PersistentVolumeClaim{}).
 		Complete(r)
 }

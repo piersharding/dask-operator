@@ -17,75 +17,79 @@ var PullPolicy string
 
 // DaskContext is the set of parameters to configures this instance
 type DaskContext struct {
-	JupyterIngress   string
-	SchedulerIngress string
-	MonitorIngress   string
-	Daemon           bool
-	Jupyter          bool
-	Namespace        string
-	Name             string
-	ServiceType      string
-	Port             int
-	BokehPort        int
-	Replicas         int32
-	Cluster          string
-	Script           string
-	ScriptType       string
-	ScriptContents   string
-	MountedFile      bool
-	Image            string
-	Repository       string
-	Tag              string
-	PullSecrets      interface{}
-	PullPolicy       string
-	NodeSelector     interface{}
-	Affinity         interface{}
-	Tolerations      interface{}
-	Resources        interface{}
-	VolumeMounts     interface{}
-	Volumes          interface{}
-	Env              interface{}
-	JupyterImage     string
-	JupyterPassword  string
-	Scheduler        interface{}
-	Worker           interface{}
-	Notebook         interface{}
+	JupyterIngress     string
+	SchedulerIngress   string
+	MonitorIngress     string
+	Daemon             bool
+	Jupyter            bool
+	Namespace          string
+	Name               string
+	ServiceType        string
+	Port               int
+	BokehPort          int
+	Replicas           int32
+	Cluster            string
+	Script             string
+	ScriptType         string
+	ScriptContents     string
+	Report             bool
+	ReportStorageClass string
+	MountedFile        bool
+	Image              string
+	Repository         string
+	Tag                string
+	PullSecrets        interface{}
+	PullPolicy         string
+	NodeSelector       interface{}
+	Affinity           interface{}
+	Tolerations        interface{}
+	Resources          interface{}
+	VolumeMounts       interface{}
+	Volumes            interface{}
+	Env                interface{}
+	JupyterImage       string
+	JupyterPassword    string
+	Scheduler          interface{}
+	Worker             interface{}
+	Notebook           interface{}
 }
 
 // SetConfig setup the configuration
 func SetConfig(dask analyticsv1.Dask) DaskContext {
 
 	context := DaskContext{
-		JupyterIngress:   dask.Spec.JupyterIngress,
-		SchedulerIngress: dask.Spec.SchedulerIngress,
-		MonitorIngress:   dask.Spec.MonitorIngress,
-		Daemon:           dask.Spec.Daemon,
-		Jupyter:          dask.Spec.Jupyter,
-		Namespace:        dask.Namespace,
-		Name:             dask.Name,
-		ServiceType:      "ClusterIP",
-		Port:             8786,
-		BokehPort:        8787,
-		Replicas:         dask.Spec.Replicas,
-		Image:            dask.Spec.Image,
-		Script:           "/notebook.ipynb",
-		ScriptType:       "",
-		ScriptContents:   "",
-		MountedFile:      false,
-		PullSecrets:      dask.Spec.PullSecrets,
-		PullPolicy:       dask.Spec.ImagePullPolicy,
-		NodeSelector:     dask.Spec.NodeSelector,
-		Affinity:         dask.Spec.Affinity,
-		Tolerations:      dask.Spec.Tolerations,
-		Resources:        dask.Spec.Resources,
-		VolumeMounts:     dask.Spec.VolumeMounts,
-		Volumes:          dask.Spec.Volumes,
-		Env:              dask.Spec.Env,
-		JupyterImage:     "jupyter/scipy-notebook:latest",
-		JupyterPassword:  dask.Spec.JupyterPassword,
-		Scheduler:        dask.Spec.Scheduler,
-		Worker:           dask.Spec.Worker,
-		Notebook:         dask.Spec.Notebook}
+		JupyterIngress:     dask.Spec.JupyterIngress,
+		SchedulerIngress:   dask.Spec.SchedulerIngress,
+		MonitorIngress:     dask.Spec.MonitorIngress,
+		Daemon:             dask.Spec.Daemon,
+		Jupyter:            dask.Spec.Jupyter,
+		Namespace:          dask.Namespace,
+		Name:               dask.Name,
+		ServiceType:        "ClusterIP",
+		Port:               8786,
+		BokehPort:          8787,
+		Replicas:           dask.Spec.Replicas,
+		Image:              dask.Spec.Image,
+		Script:             "/notebook.ipynb",
+		ScriptType:         "",
+		ScriptContents:     "",
+		Report:             false,
+		ReportStorageClass: "standard",
+		MountedFile:        false,
+		PullSecrets:        dask.Spec.PullSecrets,
+		PullPolicy:         dask.Spec.ImagePullPolicy,
+		NodeSelector:       dask.Spec.NodeSelector,
+		Affinity:           dask.Spec.Affinity,
+		Tolerations:        dask.Spec.Tolerations,
+		Resources:          dask.Spec.Resources,
+		VolumeMounts:       dask.Spec.VolumeMounts,
+		Volumes:            dask.Spec.Volumes,
+		Env:                dask.Spec.Env,
+		JupyterImage:       "jupyter/scipy-notebook:latest",
+		JupyterPassword:    dask.Spec.JupyterPassword,
+		Scheduler:          dask.Spec.Scheduler,
+		Worker:             dask.Spec.Worker,
+		Notebook:           dask.Spec.Notebook}
 
 	// if dask.Spec.Daemon != nil {
 	// 	context.Daemon = *dask.Spec.Daemon
@@ -177,12 +181,16 @@ func (context *DaskContext) SetJobConfig(daskjob *analyticsv1.DaskJob) {
 		if daskjob.Spec.Image != "" {
 			context.Image = daskjob.Spec.Image
 		}
-		if daskjob.Spec.ImagePullPolicy == "" {
+		if daskjob.Spec.ImagePullPolicy != "" {
 			context.PullPolicy = daskjob.Spec.ImagePullPolicy
+		}
+		if daskjob.Spec.ReportStorageClass != "" {
+			context.ReportStorageClass = daskjob.Spec.ReportStorageClass
 		}
 		context.Name = daskjob.Name
 		context.Cluster = daskjob.Spec.Cluster
 		context.Script = daskjob.Spec.Script
+		context.Report = daskjob.Spec.Report
 	}
 }
 

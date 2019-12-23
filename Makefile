@@ -20,6 +20,10 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# PVC name and directory for reports
+REPORT_VOLUME ?= daskjob-report-pvc-app1-simple
+REPORTS_DIR ?= /reports
+
 -include PrivateRules.mak
 
 .DEFAULT_GOAL := help
@@ -229,6 +233,13 @@ describe: ## describe Pods executed from Helm chart
 	echo "---------------------------------------------------"; \
 	echo ""; echo ""; echo ""; \
 	done
+
+reports: ## retrieve report from PVC - use something like 'make reports REPORT_VOLUME=daskjob-report-pvc-daskjob-app1-http-ipynb'
+	rm -rf ./$(REPORTS_DIR)
+	mkdir -p ./$(REPORTS_DIR)
+	cd ./$(REPORTS_DIR) && kubectl run --quiet -i --rm $(REPORT_VOLUME) \
+	  --overrides='{"spec": {"containers": [{"name": "rescue","image": "ubuntu:18.04","command": ["/bin/sh"], "args": ["-c", "cd /$(REPORTS_DIR); tar -czf - * "],"volumeMounts": [{"mountPath": "/$(REPORTS_DIR)","name": "reports"}]}],"volumes": [{"name":"reports","persistentVolumeClaim":{"claimName": "$(REPORT_VOLUME)"}}]}}' \
+		--image=ubuntu:18.04 --restart=Never | tar -xzvf -
 
 help:  ## show this help.
 	@echo "make targets:"

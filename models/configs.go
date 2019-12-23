@@ -361,12 +361,13 @@ data:
 
     export SCRIPT_TYPE="{{ .ScriptType }}"
     export MOUNTED_FILE="{{ .MountedFile }}"
+    export REPORTS_DIR=${REPORTS_DIR:-/reports}
+
     #echo "Complete environment:"
     #printenv
     #ls -l /
     echo "SCRIPT_TYPE=${SCRIPT_TYPE}, MOUNTED_FILE=${MOUNTED_FILE}"
     cd /var/tmp
-    
 
     if [ "${SCRIPT_TYPE}" = "py" ]; then
       echo "Launching /app.py"
@@ -374,18 +375,15 @@ data:
     else
       if [ "${SCRIPT_TYPE}" = "ipynb" ]; then
         # launch the notebook - the IP address to listen on is passed in via env-var IP
-        # copy the notebook to /var/tmp as that is the working base_dir we want
-        cp /app.ipynb /var/tmp/app.ipynb
-        echo "Launching /var/tmp/app.ipynb"
+        echo "Launching /app.ipynb"
         export JUPYTER_PASSWORD=${JUPYTER_PASSWORD:-changeme}
         TIMEOUT=${TIMEOUT:-3600}
-        mkdir -p /var/tmp/output
-        #/opt/conda/bin/pip install sklearn
+        [ -d "${REPORTS_DIR}" ] || ( mkdir -p ${REPORTS_DIR} && chmod 777 ${REPORTS_DIR} )
         jupyter nbconvert --execute \
                           --ExecutePreprocessor.timeout=${TIMEOUT} \
                           --config=/jupyter_notebook_config.py \
-                          --to html /var/tmp/app.ipynb \
-                          --output-dir=/var/tmp/output
+                          --to html /app.ipynb \
+                          --output-dir=${REPORTS_DIR}
       else
         # this is an unknown file
         echo "Launching /app.sh"
