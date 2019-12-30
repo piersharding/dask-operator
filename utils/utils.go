@@ -94,7 +94,7 @@ func ApplyTemplate(s string, context dtypes.DaskContext) (string, error) {
 	}
 
 	yamlData := tpl.String()
-	log.Infof("Rendered Template: %s\n", yamlData)
+	log.Debugf("Rendered Template: %s\n", yamlData)
 	body, err := YamlToMap(yamlData)
 	if err != nil {
 		log.Debugf("YamlToMap Error: %+v\n", err)
@@ -127,7 +127,7 @@ func CheckJobScript(script string) (string, string, bool, error) {
 	if err != nil {
 		// string is not valid JSON - check for python code
 		matched, err := regexp.MatchString(`(?m)^#!\/usr\/bin\/env python\n`, script)
-		fmt.Println(matched, err)
+		// fmt.Println(matched, err)
 		if err != nil || matched != true {
 			// string is not a valid py script - check for URl and file
 			u, err := url.Parse(script)
