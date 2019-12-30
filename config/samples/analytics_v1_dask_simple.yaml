@@ -2,11 +2,11 @@
 apiVersion: analytics.piersharding.com/v1
 kind: Dask
 metadata:
-  name: app1-simple
+  name: simple1
 spec:
   # daemon: true
   jupyter: true
-  replicas: 5
+  replicas: 2
   # image: arl:ubuntu18.04
   image: daskdev/dask:latest
   #image: piersharding/arl-dask:latest

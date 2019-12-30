@@ -36,7 +36,7 @@ test: generate fmt vet manifests ## run tests
 	# go test ./controllers/... -coverprofile cover.out
 	rm -rf cover.* cover
 	mkdir -p cover
-	TEST_USE_EXISTING_CLUSTER=$(TEST_USE_EXISTING_CLUSTER) go test ./api/... ./types/... ./utils/... ./models/... ./controllers/... -coverprofile cover.out.tmp
+	LOG_LEVEL=DEBUG TEST_USE_EXISTING_CLUSTER=$(TEST_USE_EXISTING_CLUSTER) go test ./api/... ./types/... ./utils/... ./models/... ./controllers/... -coverprofile cover.out.tmp -v
 	cat cover.out.tmp | grep -v "XX_generated.deepcopy.go" > cover.out
 	go tool cover -html=cover.out -o cover/cover.html
 	rm -f cover.out cover.out.tmp cover.json

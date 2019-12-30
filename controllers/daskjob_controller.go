@@ -186,6 +186,10 @@ func (r *DaskJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	daskjob.Status.Succeeded = 0
+	daskjob.Status.Resources = ""
+	daskjob.Status.State = "Building"
+
 	var dask analyticsv1.Dask
 	daskobjkey := client.ObjectKey{
 		Namespace: req.Namespace,
@@ -196,6 +200,8 @@ func (r *DaskJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
 		// on deleted requests.
+		daskjob.Status.State = fmt.Sprintf("Pending creation of Dask cluster: %s", daskjob.Spec.Cluster)
+		r.Status().Update(ctx, &daskjob)
 		return ctrl.Result{}, client.IgnoreNotFound(errors.New("unable to fetch DaskJob(create/delete in progress?): " + err.Error()))
 	}
 
@@ -211,10 +217,6 @@ func (r *DaskJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	var currentConfig *corev1.ConfigMap
 	var currentJobConfig *corev1.ConfigMap
 	var currentJobPVC *corev1.PersistentVolumeClaim
-
-	daskjob.Status.Succeeded = 0
-	daskjob.Status.Resources = ""
-	daskjob.Status.State = "Building"
 
 	var childJobs batchv1.JobList
 	if err := r.List(ctx, &childJobs, client.InNamespace(req.Namespace), client.MatchingFields{jobOwnerKey: req.Name}); err != nil {
@@ -246,9 +248,11 @@ func (r *DaskJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return false, ""
 	}
 	// Compute status based on latest observed state.
-	_, finishedType := isJobFinished(currentJob)
+	finishedState, finishedType := isJobFinished(currentJob)
 	if finishedType == "" {
 		daskjob.Status.State = "Running"
+	} else if finishedState {
+		daskjob.Status.State = string(finishedType)
 	}
 	Infof(log, "Status: %s", finishedType)
 
