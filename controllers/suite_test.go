@@ -78,8 +78,8 @@ var _ = BeforeSuite(func(done Done) {
 	err = analyticsv1.AddToScheme(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = analyticsv1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+	// err = analyticsv1.AddToScheme(scheme.Scheme)
+	// Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:scheme
 
@@ -118,15 +118,25 @@ func SetupTest(ctx context.Context) *core.Namespace {
 		mgr, err := ctrl.NewManager(cfg, ctrl.Options{})
 		Expect(err).NotTo(HaveOccurred(), "failed to create manager")
 
-		controller := &DaskReconciler{
+		daskcontroller := &DaskReconciler{
 			Client:    mgr.GetClient(),
 			Log:       logf.Log.WithName("controllers").WithName("Dask"),
 			CustomLog: dtypes.CustomLogger{Logger: ctrl.Log.WithName("controllers").WithName("Dask")},
 			Scheme:    mgr.GetScheme(),
 			Recorder:  mgr.GetEventRecorderFor("dask-controller"),
 		}
-		err = controller.SetupWithManager(mgr)
+		err = daskcontroller.SetupWithManager(mgr)
 		Expect(err).NotTo(HaveOccurred(), "failed to setup controller")
+
+		daskjobcontroller := &DaskJobReconciler{
+			Client:    mgr.GetClient(),
+			Log:       logf.Log.WithName("controllers").WithName("DaskJob"),
+			CustomLog: dtypes.CustomLogger{Logger: ctrl.Log.WithName("controllers").WithName("DaskJob")},
+			Scheme:    mgr.GetScheme(),
+			Recorder:  mgr.GetEventRecorderFor("daskjob-controller"),
+		}
+		err = daskjobcontroller.SetupWithManager(mgr)
+		Expect(err).NotTo(HaveOccurred(), "failed to setup job controller")
 
 		go func() {
 			err := mgr.Start(stopCh)
