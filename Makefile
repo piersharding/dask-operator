@@ -1,4 +1,5 @@
 KUBE_NAMESPACE = dask-operator-system
+KUBE_REPORT_NAMESPACE ?= default
 WEBHOOK_SERVICE_NAME = dask-operator-webhook-service
 CERT_DIR = /tmp/k8s-webhook-server/serving-certs
 TEMP_DIRECTORY := $(shell mktemp -d)
@@ -26,6 +27,7 @@ REPORTS_DIR ?= /reports
 
 -include PrivateRules.mak
 
+.PHONY: k8s show lint deploy delete logs describe namespace test clean run install reports help
 .DEFAULT_GOAL := help
 
 all: manifests manager  ## run all
@@ -235,11 +237,16 @@ describe: ## describe Pods executed from Helm chart
 	done
 
 reports: ## retrieve report from PVC - use something like 'make reports REPORT_VOLUME=daskjob-report-pvc-daskjob-app1-http-ipynb'
-	rm -rf ./$(REPORTS_DIR)
-	mkdir -p ./$(REPORTS_DIR)
-	cd ./$(REPORTS_DIR) && kubectl run --quiet -i --rm $(REPORT_VOLUME) \
-	  --overrides='{"spec": {"containers": [{"name": "rescue","image": "ubuntu:18.04","command": ["/bin/sh"], "args": ["-c", "cd /$(REPORTS_DIR); tar -czf - * "],"volumeMounts": [{"mountPath": "/$(REPORTS_DIR)","name": "reports"}]}],"volumes": [{"name":"reports","persistentVolumeClaim":{"claimName": "$(REPORT_VOLUME)"}}]}}' \
-		--image=ubuntu:18.04 --restart=Never | tar -xzvf -
+	rm -rf $$(pwd)/$(REPORTS_DIR)
+	mkdir -p $$(pwd)/$(REPORTS_DIR)
+	kubectl -n $(KUBE_REPORT_NAMESPACE) run --quiet $(REPORT_VOLUME) \
+	  --overrides='{"spec": {"containers": [{"name": "rescue","image": "busybox:latest","command": ["/bin/sh"], "args": ["-c", "sleep 3600"],"volumeMounts": [{"mountPath": "/$(REPORTS_DIR)","name": "reports"}]}],"volumes": [{"name":"reports","persistentVolumeClaim":{"claimName": "$(REPORT_VOLUME)"}}]}}' \
+		--image=busybox:latest --restart=Never
+	kubectl -n $(KUBE_REPORT_NAMESPACE) wait --for=condition=Ready pod/$(REPORT_VOLUME) --timeout=300s
+	echo "ls -latr /$(REPORTS_DIR)" | kubectl -n $(KUBE_REPORT_NAMESPACE) exec -i $(REPORT_VOLUME) sh
+	kubectl cp $(KUBE_REPORT_NAMESPACE)/$(REPORT_VOLUME):/$(REPORTS_DIR) $$(pwd)/$(REPORTS_DIR)
+	kubectl -n $(KUBE_REPORT_NAMESPACE) delete pod $(REPORT_VOLUME) --now=true --wait=true
+
 
 help:  ## show this help.
 	@echo "make targets:"
