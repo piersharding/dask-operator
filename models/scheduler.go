@@ -8,6 +8,7 @@ import (
 	"github.com/piersharding/dask-operator/utils"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 // DaskSchedulerService generates the Service description for
@@ -54,49 +55,6 @@ spec:
 // DaskSchedulerDeployment generates the Deployment description for
 // the Dask Scheduler
 func DaskSchedulerDeployment(dcontext dtypes.DaskContext) (*appsv1.Deployment, error) {
-
-	// replicasOf1 := int32(1)
-
-	// deployment := appsv1.Deployment{
-	// 	ObjectMeta: metav1.ObjectMeta{
-	// 		Name:            "dask-scheduler-" + dcontext.Name,
-	// 		Namespace:       dask.Namespace,
-	// 		OwnerReferences: []metav1.OwnerReference{*metav1.NewControllerRef(&dask, analyticsv1.GroupVersion.WithKind("Dask"))},
-	// 		Labels: map[string]string{
-	// 			"app.kubernetes.io/name":       "dask-scheduler",
-	// 			"app.kubernetes.io/instance":   dcontext.Name,
-	// 			"app.kubernetes.io/managed-by": "DaskController",
-	// 		},
-	// 	},
-	// 	Spec: appsv1.DeploymentSpec{
-	// 		// Replicas: &dask.Spec.Replicas,
-	// 		Replicas: &replicasOf1,
-	// 		Selector: &metav1.LabelSelector{
-	// 			MatchLabels: map[string]string{
-	// 				"app.kubernetes.io/name":     "dask-scheduler",
-	// 				"app.kubernetes.io/instance": dcontext.Name,
-	// 			},
-	// 		},
-	// 		Template: corev1.PodTemplateSpec{
-	// 			ObjectMeta: metav1.ObjectMeta{
-	// 				Labels: map[string]string{
-	// 					"app.kubernetes.io/name":       "dask-scheduler",
-	// 					"app.kubernetes.io/instance":   dcontext.Name,
-	// 					"app.kubernetes.io/managed-by": "DaskController",
-	// 				},
-	// 			},
-	// 			Spec: corev1.PodSpec{
-	// 				Containers: []corev1.Container{
-	// 					{
-	// 						Name:  "nginx",
-	// 						Image: "nginx:latest",
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// }
-	// return &deployment, nil
 
 	const schedulerDeployment = `
 apiVersion: apps/v1
@@ -238,4 +196,76 @@ spec:
 		return nil, err
 	}
 	return deployment, err
+}
+
+// DaskSchedulerNetworkPolicy generates the NetworkPolicy description for
+// the Dask Scheduler
+func DaskSchedulerNetworkPolicy(dcontext dtypes.DaskContext) (*networkingv1.NetworkPolicy, error) {
+	const schedulerNetworkPolicy = `
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dask-scheduler-networkpolicy-{{ .Name }}
+  namespace: {{ .Namespace }}
+  labels:
+    app.kubernetes.io/name: dask-scheduler-networkpolicy
+    app.kubernetes.io/instance: "{{ .Name }}"
+    app.kubernetes.io/managed-by: DaskController
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dask-scheduler
+      app.kubernetes.io/instance: "{{ .Name }}"
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+    # enable the scheduler interface for workers
+        matchLabels:
+          app.kubernetes.io/name:  dask-worker
+          app.kubernetes.io/instance: "{{ .Name }}"
+    - podSelector:
+    # enable the scheduler interface for the notebook
+        matchLabels:
+          app.kubernetes.io/name:  jupyter-notebook
+          app.kubernetes.io/instance: "{{ .Name }}"
+    - podSelector:
+    # enable the scheduler interface for any DaskJob
+        matchLabels:
+          app.kubernetes.io/managed-by: DaskJobController
+          app.kubernetes.io/name: daskjob-job
+    ports:
+    - port: scheduler
+      protocol: TCP
+  - from:
+    - namespaceSelector: {}
+      podSelector:
+    # enable the scheduler monitor interface for everyone
+        matchLabels:
+          app: nginx-ingress
+          component: controller
+    ports:
+    - port: bokeh
+      protocol: TCP
+  egress:
+  - to:
+    - podSelector:
+    # enable the scheduler interface for workers
+        matchLabels:
+          app.kubernetes.io/name:  dask-worker
+          app.kubernetes.io/instance: "{{ .Name }}"
+`
+	result, err := utils.ApplyTemplate(schedulerNetworkPolicy, dcontext)
+	if err != nil {
+		log.Debugf("ApplyTemplate Error: %+v\n", err)
+		return nil, err
+	}
+
+	networkpolicy := &networkingv1.NetworkPolicy{}
+	if err := json.Unmarshal([]byte(result), networkpolicy); err != nil {
+		return nil, err
+	}
+	return networkpolicy, err
 }

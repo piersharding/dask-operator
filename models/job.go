@@ -61,7 +61,7 @@ metadata:
     app.kubernetes.io/instance: "{{ .Name }}"
     app.kubernetes.io/managed-by: DaskJobController
 spec:
-  backoffLimit: 32
+  backoffLimit: 2
   completions: 1
   parallelism: 1
   template:

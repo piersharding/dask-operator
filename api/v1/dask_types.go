@@ -38,6 +38,12 @@ type DaskSpec struct {
 	// +optional
 	Daemon bool `json:"daemon,omitempty"`
 
+	// +kubebuilder:validation:Default=false
+
+	// Disable Network Policies
+	// +optional
+	DisablePolicies bool `json:"disablepolicies,omitempty"`
+
 	// +kubebuilder:validation:Minimum=0
 
 	// Number of workers to spawn - default will be 5

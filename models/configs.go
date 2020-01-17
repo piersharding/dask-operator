@@ -22,7 +22,7 @@ metadata:
   labels:
     app.kubernetes.io/name: dask-configs
     app.kubernetes.io/instance: "{{ .Name }}"
-    app.kubernetes.io/managed-by: MetaController
+    app.kubernetes.io/managed-by: DaskController
 data:
   start-jupyter-notebook.sh: |
     #!/usr/bin/env bash
@@ -251,7 +251,7 @@ metadata:
   labels:
     app.kubernetes.io/name: daskjob-configs
     app.kubernetes.io/instance: "{{ .Name }}"
-    app.kubernetes.io/managed-by: MetaController
+    app.kubernetes.io/managed-by: DaskJobController
 data:
     
   app.{{ .ScriptType }}: |
@@ -362,6 +362,12 @@ data:
     export SCRIPT_TYPE="{{ .ScriptType }}"
     export MOUNTED_FILE="{{ .MountedFile }}"
     export REPORTS_DIR=${REPORTS_DIR:-/reports}
+
+    #echo "Scheduler: ${DASK_SCHEDULER}"
+    #SCHED_HOST=$(echo "${DASK_SCHEDULER}" | cut -d: -f 1)
+    #echo "Scheduler host: ${SCHED_HOST}"
+    #apt update && apt install -y iputils-ping
+    #ping -c 2 ${SCHED_HOST} || true
 
     #echo "Complete environment:"
     #printenv

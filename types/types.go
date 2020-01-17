@@ -22,6 +22,7 @@ type DaskContext struct {
 	MonitorIngress     string
 	Daemon             bool
 	Jupyter            bool
+	DisablePolicies    bool
 	Namespace          string
 	Name               string
 	ServiceType        string
@@ -63,6 +64,7 @@ func SetConfig(dask analyticsv1.Dask) DaskContext {
 		MonitorIngress:     dask.Spec.MonitorIngress,
 		Daemon:             dask.Spec.Daemon,
 		Jupyter:            dask.Spec.Jupyter,
+		DisablePolicies:    dask.Spec.DisablePolicies,
 		Namespace:          dask.Namespace,
 		Name:               dask.Name,
 		ServiceType:        "ClusterIP",

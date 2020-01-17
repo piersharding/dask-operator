@@ -22,7 +22,7 @@ metadata:
   labels:
     app.kubernetes.io/name: dask
     app.kubernetes.io/instance: "{{ .Name }}"
-    app.kubernetes.io/managed-by: MetaController
+    app.kubernetes.io/managed-by: DaskController
   annotations:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/x-forwarded-prefix: "true"

@@ -248,6 +248,54 @@ reports: ## retrieve report from PVC - use something like 'make reports REPORT_V
 	kubectl -n $(KUBE_REPORT_NAMESPACE) delete pod $(REPORT_VOLUME) --now=true --wait=true
 
 
+dasklogs: ## show Dask POD logs
+	@for i in `kubectl -n $(KUBE_REPORT_NAMESPACE) get pods -l app.kubernetes.io/name=dask-scheduler -o=name`; \
+	do \
+		echo "---------------------------------------------------"; \
+		echo "Logs for $${i}"; \
+		echo kubectl -n $(KUBE_REPORT_NAMESPACE) logs $${i}; \
+		echo kubectl -n $(KUBE_REPORT_NAMESPACE) get $${i} -o jsonpath="{.spec.initContainers[*].name}"; \
+		echo "---------------------------------------------------"; \
+		for j in `kubectl -n $(KUBE_REPORT_NAMESPACE) get $${i} -o jsonpath="{.spec.initContainers[*].name}"`; do \
+			RES=`kubectl -n $(KUBE_REPORT_NAMESPACE) logs $${i} -c $${j} 2>/dev/null`; \
+			echo "initContainer: $${j}"; echo "$${RES}"; \
+			echo "---------------------------------------------------";\
+		done; \
+		echo "Main Pod logs for $${i}"; \
+		echo "---------------------------------------------------"; \
+		for j in `kubectl -n $(KUBE_REPORT_NAMESPACE) get $${i} -o jsonpath="{.spec.containers[*].name}"`; do \
+			RES=`kubectl -n $(KUBE_REPORT_NAMESPACE) logs $${i} -c $${j} 2>/dev/null`; \
+			echo "Container: $${j}"; echo "$${RES}"; \
+			echo "---------------------------------------------------";\
+		done; \
+		echo "---------------------------------------------------"; \
+		echo ""; echo ""; echo ""; \
+	done
+	@for i in `kubectl -n $(KUBE_REPORT_NAMESPACE) get pods -l app.kubernetes.io/name=dask-worker -o=name`; \
+	do \
+		echo "---------------------------------------------------"; \
+		echo "Logs for $${i}"; \
+		echo kubectl -n $(KUBE_REPORT_NAMESPACE) logs $${i}; \
+		echo kubectl -n $(KUBE_REPORT_NAMESPACE) get $${i} -o jsonpath="{.spec.initContainers[*].name}"; \
+		echo "---------------------------------------------------"; \
+		for j in `kubectl -n $(KUBE_REPORT_NAMESPACE) get $${i} -o jsonpath="{.spec.initContainers[*].name}"`; do \
+			RES=`kubectl -n $(KUBE_REPORT_NAMESPACE) logs $${i} -c $${j} 2>/dev/null`; \
+			echo "initContainer: $${j}"; echo "$${RES}"; \
+			echo "---------------------------------------------------";\
+		done; \
+		echo "Main Pod logs for $${i}"; \
+		echo "---------------------------------------------------"; \
+		for j in `kubectl -n $(KUBE_REPORT_NAMESPACE) get $${i} -o jsonpath="{.spec.containers[*].name}"`; do \
+			RES=`kubectl -n $(KUBE_REPORT_NAMESPACE) logs $${i} -c $${j} 2>/dev/null`; \
+			echo "Container: $${j}"; echo "$${RES}"; \
+			echo "---------------------------------------------------";\
+		done; \
+		echo "---------------------------------------------------"; \
+		echo ""; echo ""; echo ""; \
+	done
+
+
+
 help:  ## show this help.
 	@echo "make targets:"
 	@grep -E '^[0-9a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ": .*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

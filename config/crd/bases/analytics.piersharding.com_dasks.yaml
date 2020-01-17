@@ -633,6 +633,9 @@ spec:
             daemon:
               description: Deploy workers like a DaemonSet - scattered one per node
               type: boolean
+            disablepolicies:
+              description: Disable Network Policies
+              type: boolean
             env:
               description: Specifies the Environment variables.
               items:

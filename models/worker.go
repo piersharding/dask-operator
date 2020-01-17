@@ -7,6 +7,7 @@ import (
 	dtypes "github.com/piersharding/dask-operator/types"
 	"github.com/piersharding/dask-operator/utils"
 	appsv1 "k8s.io/api/apps/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 // DaskWorkerDeployment generates the Deployment description for
@@ -21,7 +22,7 @@ metadata:
   labels:
     app.kubernetes.io/name: dask-worker
     app.kubernetes.io/instance: "{{ .Name }}"
-    app.kubernetes.io/managed-by: MetaController
+    app.kubernetes.io/managed-by: DaskController
 spec:
   selector:
     matchLabels:
@@ -33,7 +34,7 @@ spec:
       labels:
         app.kubernetes.io/name: dask-worker
         app.kubernetes.io/instance: "{{ .Name }}"
-        app.kubernetes.io/managed-by: MetaController
+        app.kubernetes.io/managed-by: DaskController
     spec:
       {{- with .PullSecrets }}
       imagePullSecrets:
@@ -192,4 +193,64 @@ spec:
 		return nil, err
 	}
 	return deployment, err
+}
+
+// DaskWorkerNetworkPolicy generates the NetworkPolicy description for
+// the Dask Worker
+func DaskWorkerNetworkPolicy(dcontext dtypes.DaskContext) (*networkingv1.NetworkPolicy, error) {
+	const workerNetworkPolicy = `
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: dask-worker-networkpolicy-{{ .Name }}
+  namespace: {{ .Namespace }}
+  labels:
+    app.kubernetes.io/name: dask-worker-networkpolicy
+    app.kubernetes.io/instance: "{{ .Name }}"
+    app.kubernetes.io/managed-by: DaskController
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: dask-worker
+      app.kubernetes.io/instance: "{{ .Name }}"
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+    # enable the workers to talk to the workers
+        matchLabels:
+          app.kubernetes.io/name:  dask-worker
+          app.kubernetes.io/instance: "{{ .Name }}"
+    - podSelector:
+    # enable the scheduler to talk to the workers
+        matchLabels:
+          app.kubernetes.io/name:  dask-scheduler
+          app.kubernetes.io/instance: "{{ .Name }}"
+  egress:
+  - to:
+    - podSelector:
+  # enable the workers to talk to the scheduler
+        matchLabels:
+          app.kubernetes.io/name:  dask-scheduler
+          app.kubernetes.io/instance: "{{ .Name }}"
+
+    - podSelector:
+  # enable the workers to talk to other workers
+        matchLabels:
+          app.kubernetes.io/name:  dask-worker
+          app.kubernetes.io/instance: "{{ .Name }}"
+`
+	result, err := utils.ApplyTemplate(workerNetworkPolicy, dcontext)
+	if err != nil {
+		log.Debugf("ApplyTemplate Error: %+v\n", err)
+		return nil, err
+	}
+
+	networkpolicy := &networkingv1.NetworkPolicy{}
+	if err := json.Unmarshal([]byte(result), networkpolicy); err != nil {
+		return nil, err
+	}
+	return networkpolicy, err
 }

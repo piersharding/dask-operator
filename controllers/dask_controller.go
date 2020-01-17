@@ -399,6 +399,30 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// create dependent ConfigMap
 	Debugf(log, "###### Create ConfigMap #######")
 	if currentConfig == nil {
+
+		// create cluster wide DNS NetworkPolicy
+		if !dcontext.DisablePolicies {
+			dnsNetworkPolicy, err := models.DNSNetworkPolicy(dcontext.ForNotebook())
+			if err != nil {
+				Errorf(log, err, "DNSNetworkPolicy Error: %+v\n", err)
+				dask.Status.State = fmt.Sprintf("DNSNetworkPolicy Error: %+v\n", err)
+				return ctrl.Result{}, err
+			}
+			dnsNetworkPolicy.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&dask, analyticsv1.GroupVersion.WithKind("Dask"))}
+			Debugf(log, "DNSNetworkPolicy: %+v", *dnsNetworkPolicy)
+			// set the reference
+			if err := ctrl.SetControllerReference(&dask, dnsNetworkPolicy, r.Scheme); err != nil {
+				Errorf(log, err, "DNSNetworkPolicy Error: %+v\n", err)
+				return ctrl.Result{}, err
+			}
+			// ...and create it on the cluster
+			if err := r.Create(ctx, dnsNetworkPolicy); err != nil {
+				log.Error(err, "unable to create DNSNetworkPolicy for Dask", "NetworkPolicy", dnsNetworkPolicy)
+				return ctrl.Result{}, err
+			}
+		}
+
+		// create ConfigMap
 		configMap, err := models.DaskConfigs(dcontext)
 		if err != nil {
 			Errorf(log, err, "DaskConfigs Error: %+v\n", err)
@@ -423,6 +447,30 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// if we have Jupyter enabled, create deployment
 	Debugf(log, "###### Create Jupyter #######")
 	if dcontext.Jupyter && currentJupyterDeployment == nil {
+
+		// create NetworkPolicy
+		if !dcontext.DisablePolicies {
+			jupyterNetworkPolicy, err := models.JupyterNetworkPolicy(dcontext.ForNotebook())
+			if err != nil {
+				Errorf(log, err, "JupyterNetworkPolicy Error: %+v\n", err)
+				dask.Status.State = fmt.Sprintf("JupyterNetworkPolicy Error: %+v\n", err)
+				return ctrl.Result{}, err
+			}
+			jupyterNetworkPolicy.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&dask, analyticsv1.GroupVersion.WithKind("Dask"))}
+			Debugf(log, "JupyterNetworkPolicy: %+v", *jupyterNetworkPolicy)
+			// set the reference
+			if err := ctrl.SetControllerReference(&dask, jupyterNetworkPolicy, r.Scheme); err != nil {
+				Errorf(log, err, "JupyterNetworkPolicy Error: %+v\n", err)
+				return ctrl.Result{}, err
+			}
+			// ...and create it on the cluster
+			if err := r.Create(ctx, jupyterNetworkPolicy); err != nil {
+				log.Error(err, "unable to create JupyterNetworkPolicy for Dask", "NetworkPolicy", jupyterNetworkPolicy)
+				return ctrl.Result{}, err
+			}
+		}
+
+		// create Service
 		jupyterService, err := models.JupyterService(dcontext)
 		if err != nil {
 			Errorf(log, err, "JupyterService Error: %+v\n", err)
@@ -442,6 +490,7 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return ctrl.Result{}, err
 		}
 
+		// create Deployment
 		jupyterDeployment, err := models.JupyterDeployment(dcontext.ForNotebook())
 		if err != nil {
 			Errorf(log, err, "JupyterDeployment Error: %+v\n", err)
@@ -466,6 +515,30 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// create scheduler deployment and service
 	Debugf(log, "###### Create Scheduler #######")
 	if currentSchedulerDeployment == nil {
+
+		// create NetworkPolicy
+		if !dcontext.DisablePolicies {
+			schedulerNetworkPolicy, err := models.DaskSchedulerNetworkPolicy(dcontext.ForNotebook())
+			if err != nil {
+				Errorf(log, err, "DaskSchedulerNetworkPolicy Error: %+v\n", err)
+				dask.Status.State = fmt.Sprintf("DaskSchedulerNetworkPolicy Error: %+v\n", err)
+				return ctrl.Result{}, err
+			}
+			schedulerNetworkPolicy.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&dask, analyticsv1.GroupVersion.WithKind("Dask"))}
+			Debugf(log, "DaskSchedulerNetworkPolicy: %+v", *schedulerNetworkPolicy)
+			// set the reference
+			if err := ctrl.SetControllerReference(&dask, schedulerNetworkPolicy, r.Scheme); err != nil {
+				Errorf(log, err, "DaskSchedulerNetworkPolicy Error: %+v\n", err)
+				return ctrl.Result{}, err
+			}
+			// ...and create it on the cluster
+			if err := r.Create(ctx, schedulerNetworkPolicy); err != nil {
+				log.Error(err, "unable to create DaskSchedulerNetworkPolicy for Dask", "NetworkPolicy", schedulerNetworkPolicy)
+				return ctrl.Result{}, err
+			}
+		}
+
+		// create Service
 		schedulerService, err := models.DaskSchedulerService(dcontext)
 		if err != nil {
 			Errorf(log, err, "DaskSchedulerService Error: %+v\n", err)
@@ -485,6 +558,7 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return ctrl.Result{}, err
 		}
 
+		// create Deployment
 		schedulerDeployment, err := models.DaskSchedulerDeployment(dcontext.ForScheduler())
 		if err != nil {
 			Errorf(log, err, "DaskSchedulerDeployment Error: %+v\n", err)
@@ -509,6 +583,30 @@ func (r *DaskReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// create worker cluster
 	Debugf(log, "###### Create Worker #######")
 	if currentWorkerDeployment == nil {
+
+		// create NetworkPolicy
+		if !dcontext.DisablePolicies {
+			workerNetworkPolicy, err := models.DaskWorkerNetworkPolicy(dcontext.ForNotebook())
+			if err != nil {
+				Errorf(log, err, "DaskWorkerNetworkPolicy Error: %+v\n", err)
+				dask.Status.State = fmt.Sprintf("DaskWorkerNetworkPolicy Error: %+v\n", err)
+				return ctrl.Result{}, err
+			}
+			workerNetworkPolicy.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&dask, analyticsv1.GroupVersion.WithKind("Dask"))}
+			Debugf(log, "DaskWorkerNetworkPolicy: %+v", *workerNetworkPolicy)
+			// set the reference
+			if err := ctrl.SetControllerReference(&dask, workerNetworkPolicy, r.Scheme); err != nil {
+				Errorf(log, err, "DaskWorkerNetworkPolicy Error: %+v\n", err)
+				return ctrl.Result{}, err
+			}
+			// ...and create it on the cluster
+			if err := r.Create(ctx, workerNetworkPolicy); err != nil {
+				log.Error(err, "unable to create DaskWorkerNetworkPolicy for Dask", "NetworkPolicy", workerNetworkPolicy)
+				return ctrl.Result{}, err
+			}
+		}
+
+		// create Deployment
 		workerDeployment, err := models.DaskWorkerDeployment(dcontext.ForWorker())
 		if err != nil {
 			Errorf(log, err, "DaskWorkerDeployment Error: %+v\n", err)
