@@ -45,10 +45,11 @@ spec:
   # daemon: true # to force one worker per node - excess replicas will not start
   jupyter: true # add a Jupyter notebook server to the cluster
   replicas: 5 # no. of workers
+  # disablepolicies: true # disable NetworkPolicy access control
   image: daskdev/dask:2.9.0
-  jupyterIngress: notebook.dask.local 
-  schedulerIngress: scheduler.dask.local 
-  monitorIngress: monitor.dask.local
+  jupyterIngress: notebook.dask.local # DNS name for Jupyter Notebook
+  schedulerIngress: scheduler.dask.local # DNS name for Scheduler endpoint
+  monitorIngress: monitor.dask.local # the Bokeh monitor endpoint of the Dask Scheduler
   imagePullPolicy: Always
   # pass any of the following Pod Container constructs
   # which will be added to all Pods in the cluster:
@@ -60,7 +61,7 @@ spec:
   # nodeSelector:
   # tolerations:
   # add any of the above elements to notebook:, scheduler: and worker: 
-  # to specialise for each eg:
+  # to specialise for each cluster resource type eg:
   # worker:
   #   env: {}
   # will configure worker specific env vars
@@ -106,7 +107,7 @@ dask.piersharding.com/app-1   3            3           31s   Running   Ingress: 
 
 Create the following cells, and run while watching the monitors at http://monitor.dask.local :
 
-Create a jupyter notebook in http://notebook.dask.local/tree/home/jovyan/work
+Create a jupyter notebook with the Python3 engine:
 ```Jupyter Notebook
 import os
 from dask.distributed import Client
@@ -137,6 +138,18 @@ z.compute()
 ```sh
 kubectl delete dask app-1
 ```
+
+### Scheduling Notebooks in the Background
+
+Notebooks can be run against the cluster in the background with or without
+saving the report output.
+
+The Notebook can either be passed inline, or via a URL reference - see the following examples:
+
+* Inline Notebook - [config/samples/analytics_v1_daskjob_simple_ipynb.yaml](config/samples/analytics_v1_daskjob_simple_ipynb.yaml)
+* Notebook sourced from a URL - [config/samples/analytics_v1_daskjob_url_ipynb.yaml](config/samples/analytics_v1_daskjob_url_ipynb.yaml)
+
+In both cases a DaskJob resource schedules a Job resource and can optionally stash the report results in a PersisentVolumeClaim by setting the value `report: true` - see `make reports REPORT_VOLUME=name-of-PersistentVolumeClaim` which will recover the HTML output of the Notebook to `./reports`.
 
 ### Building
 
