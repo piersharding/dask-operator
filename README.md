@@ -168,9 +168,10 @@ make image
 
 ### Help
 ```sh
-$ make
+$ $ make
 make targets:
 Makefile:all                   run all
+Makefile:dasklogs              show Dask POD logs
 Makefile:deleteac              delete deployment with Admission Control Hook
 Makefile:delete                delete deployment
 Makefile:deployac              deploy all with Admission Control Hook
@@ -186,6 +187,7 @@ Makefile:install               install CRDs
 Makefile:logs                  show Helm chart POD logs
 Makefile:manifests             generate mainfests
 Makefile:namespace             create the kubernetes namespace
+Makefile:reports               retrieve report from PVC - use something like 'make reports REPORT_VOLUME=daskjob-report-pvc-daskjob-app1-http-ipynb'
 Makefile:run                   run foreground live
 Makefile:showcrds              show CRDs
 Makefile:show                  show deploy
@@ -197,4 +199,8 @@ make vars (+defaults):
 Makefile:CONTROLLER_ARGS       
 Makefile:CRD_OPTIONS           "crd:trivialVersions=true"
 Makefile:IMG                   piersharding/dask-operator-controller:latest
+Makefile:KUBE_REPORT_NAMESPACE default
+Makefile:REPORTS_DIR           /reports
+Makefile:REPORT_VOLUME         daskjob-report-pvc-app1-simple
+Makefile:TEST_USE_EXISTING_CLUSTER false
 ```
