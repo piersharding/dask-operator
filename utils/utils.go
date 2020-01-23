@@ -14,6 +14,7 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig"
+	"github.com/go-logr/logr"
 	dtypes "github.com/piersharding/dask-operator/types"
 
 	"k8s.io/helm/pkg/chartutil"
@@ -21,6 +22,21 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
+
+// Errorf helper
+func Errorf(log logr.Logger, err error, format string, a ...interface{}) {
+	log.Error(err, fmt.Sprintf(format, a...))
+}
+
+// Infof helper
+func Infof(log logr.Logger, format string, a ...interface{}) {
+	log.Info(fmt.Sprintf(format, a...))
+}
+
+// Debugf helper
+func Debugf(log logr.Logger, format string, a ...interface{}) {
+	log.Info(fmt.Sprintf(format, a...))
+}
 
 // recursive call to convert map keys
 func ConvertKeysToString(i interface{}) interface{} {

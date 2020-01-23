@@ -6,6 +6,8 @@ This operator manages [Dask](https://dask.org/) clusters, consisting of a schedu
 
 Everything is driven by `make`.  Type `make` to get a list of available targets.
 
+This has been tested on Ubuntu 19.04 and Kubernetes 1.17.1.
+
 ### Install The Dask Operator
 
 ```sh
@@ -43,7 +45,7 @@ spec:
   # daemon: true # to force one worker per node - excess replicas will not start
   jupyter: true # add a Jupyter notebook server to the cluster
   replicas: 5 # no. of workers
-  image: daskdev/dask:latest
+  image: daskdev/dask:2.9.0
   jupyterIngress: notebook.dask.local 
   schedulerIngress: scheduler.dask.local 
   monitorIngress: monitor.dask.local

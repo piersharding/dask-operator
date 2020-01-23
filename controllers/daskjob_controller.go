@@ -17,7 +17,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -49,119 +48,6 @@ type DaskJobReconciler struct {
 	CustomLog dtypes.CustomLogger
 	Scheme    *runtime.Scheme
 	Recorder  record.EventRecorder
-}
-
-// look up one of the jobs
-func (r *DaskJobReconciler) getJob(namespace string, name string, daskjob *analyticsv1.DaskJob) (*batchv1.Job, error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("looking for job", name)
-	jobKey := client.ObjectKey{
-		Namespace: namespace,
-		Name:      name,
-	}
-	job := batchv1.Job{}
-	if err := r.Get(ctx, jobKey, &job); err != nil {
-		Infof(log, "job.Get Error: %+v\n", err.Error())
-		return nil, err
-	}
-	// if job.Status.ReadyReplicas == job.Status.Replicas {
-	// 	daskjob.Status.Succeeded++
-	// }
-	return &job, nil
-}
-
-// read back the status info for the Config resource
-func (r *DaskJobReconciler) getConfig(namespace string, name string) (*corev1.ConfigMap, error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("looking for config", name)
-	objkey := client.ObjectKey{
-		Namespace: namespace,
-		Name:      name,
-	}
-
-	config := corev1.ConfigMap{}
-	if err := r.Get(ctx, objkey, &config); err != nil {
-		Errorf(log, err, "configStatus.Get Error: %+v\n", err)
-		return nil, err
-	}
-
-	return &config, nil
-}
-
-// read back the status info for the PVC resource
-func (r *DaskJobReconciler) getPVC(namespace string, name string) (*corev1.PersistentVolumeClaim, error) {
-	ctx := context.Background()
-	log := r.Log.WithValues("looking for PVC", name)
-	objkey := client.ObjectKey{
-		Namespace: namespace,
-		Name:      name,
-	}
-
-	pvc := corev1.PersistentVolumeClaim{}
-	if err := r.Get(ctx, objkey, &pvc); err != nil {
-		Errorf(log, err, "pvcStatus.Get Error: %+v\n", err)
-		return nil, err
-	}
-
-	return &pvc, nil
-}
-
-// read back the status info for the Deployment resource
-func (r *DaskJobReconciler) jobStatus(dcontext dtypes.DaskContext, name string) (string, error) {
-
-	// pods, err := ClientSet.CoreV1().Pods("").List(metav1.ListOptions{})
-	// if err != nil {
-	// 	panic(err.Error())
-	// }
-	// fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
-	ctx := context.Background()
-
-	objkey := client.ObjectKey{
-		Namespace: dcontext.Namespace,
-		Name:      name,
-	}
-
-	log := r.Log.WithValues("job", objkey)
-
-	job := batchv1.Job{}
-	if err := r.Get(ctx, objkey, &job); err != nil {
-		Errorf(log, err, "jobStatus.Get Error: %+v\n", err.Error())
-		return "", client.IgnoreNotFound(err)
-	}
-	owner := metav1.GetControllerOf(&job)
-	if owner == nil {
-		err := errors.New("jobStatus.Get Error: owner empty")
-		log.Error(err, "jobStatus.Get Error: owner empty", owner)
-		return "", err
-	}
-	// ...make sure it's a Dask...
-	if owner.APIVersion != daskjobApiGVStr || owner.Kind != "DaskJob" {
-		err := errors.New("jobStatus.Get Error: wrong kind/owner")
-		log.Error(err, "jobStatus.Get Error: wrong kind/owner", owner)
-		return "", err
-	}
-
-	Debugf(log, "The job: %+v\n", job)
-	status, err := json.Marshal(&job.Status)
-	if err != nil {
-		Errorf(log, err, "jobStatus.json Error: %+v\n", err.Error())
-		return "", err
-	}
-	Debugf(log, "The job status: %s\n", string(status))
-	return string(status), nil
-}
-
-// pull together the resource details
-func (r *DaskJobReconciler) resourceDetails(dcontext dtypes.DaskContext) (string, error) {
-
-	log := r.Log.WithName("resourceDetails")
-
-	resJob, err := r.jobStatus(dcontext, "daskjob-job-"+dcontext.Name)
-	if err != nil {
-		Errorf(log, err, "jobStatus Error: %+v\n", err)
-		return fmt.Sprintf("jobStatus Error: %+v\n", err), err
-	}
-	return fmt.Sprintf("Job: %s ", resJob), nil
 }
 
 // +kubebuilder:rbac:groups=analytics.piersharding.com,resources=daskjobs,verbs=get;list;watch;create;update;patch;delete
@@ -307,15 +193,16 @@ func (r *DaskJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	}
 
-	// create scheduler deployment and service
+	// create Job resources
 	Debugf(log, "###### Create Job #######")
 	if currentJob == nil {
 		Debugf(log, "###### Create Job Report PVC #######")
 		if dcontext.Report && currentJobPVC == nil {
+
 			daskjobJobReportPVC, err := models.DaskJobReportStorage(dcontext)
 			if err != nil {
 				Errorf(log, err, "DaskJobReportStorage Error: %+v\n", err)
-				dask.Status.State = fmt.Sprintf("DaskJobReportStorage Error: %+v\n", err)
+				daskjob.Status.State = fmt.Sprintf("DaskJobReportStorage Error: %+v\n", err)
 				return ctrl.Result{}, err
 			}
 			daskjobJobReportPVC.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&daskjob, analyticsv1.GroupVersion.WithKind("DaskJob"))}
@@ -332,10 +219,32 @@ func (r *DaskJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 			r.Recorder.Eventf(&daskjob, corev1.EventTypeNormal, "Created", "Created Job Report PVC %q", daskjobJobReportPVC.Name)
 		}
+
+		// create job wide ServiceAccount
+		daskjobServiceAccount, err := models.JobServiceAccount(dcontext)
+		if err != nil {
+			Errorf(log, err, "JobServiceAccount Error: %+v\n", err)
+			daskjob.Status.State = fmt.Sprintf("JobServiceAccount Error: %+v\n", err)
+			return ctrl.Result{}, err
+		}
+		daskjobServiceAccount.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&daskjob, analyticsv1.GroupVersion.WithKind("DaskJob"))}
+		Debugf(log, "JobServiceAccount: %+v", *daskjobServiceAccount)
+		// set the reference
+		if err := ctrl.SetControllerReference(&daskjob, daskjobServiceAccount, r.Scheme); err != nil {
+			Errorf(log, err, "JobServiceAccount Error: %+v\n", err)
+			return ctrl.Result{}, err
+		}
+		// ...and create it on the cluster
+		if err := r.Create(ctx, daskjobServiceAccount); err != nil {
+			log.Error(err, "unable to create JobServiceAccount for DaskJob", "ServiceAccount", daskjobServiceAccount)
+			return ctrl.Result{}, err
+		}
+
+		// create Job
 		daskjobJob, err := models.DaskJob(dcontext)
 		if err != nil {
 			Errorf(log, err, "DaskJob Error: %+v\n", err)
-			dask.Status.State = fmt.Sprintf("DaskJob Error: %+v\n", err)
+			daskjob.Status.State = fmt.Sprintf("DaskJob Error: %+v\n", err)
 			return ctrl.Result{}, err
 		}
 		daskjobJob.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&daskjob, analyticsv1.GroupVersion.WithKind("DaskJob"))}

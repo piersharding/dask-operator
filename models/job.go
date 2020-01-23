@@ -71,6 +71,7 @@ spec:
         app.kubernetes.io/instance: "{{ .Name }}"
         app.kubernetes.io/managed-by: DaskJobController
     spec:
+      serviceAccountName: "daskjob-serviceaccount-{{ .Name }}"
       restartPolicy: Never
     {{- with .PullSecrets }}
       imagePullSecrets:

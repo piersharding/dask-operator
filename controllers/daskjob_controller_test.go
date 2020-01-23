@@ -67,7 +67,7 @@ var _ = Context("Inside of a new namespace", func() {
 				Spec: analyticsv1.DaskSpec{
 					Jupyter:          true,
 					Replicas:         initialReplicas,
-					Image:            "daskdev/dask:latest",
+					Image:            "daskdev/dask:2.9.0",
 					JupyterIngress:   "notebook.dask.local",
 					SchedulerIngress: "scheduler.dask.local",
 					MonitorIngress:   "monitor.dask.local",

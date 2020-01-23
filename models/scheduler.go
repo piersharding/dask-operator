@@ -79,6 +79,7 @@ spec:
         app.kubernetes.io/instance: "{{ .Name }}"
         app.kubernetes.io/managed-by: DaskController
     spec:
+      serviceAccountName: "dask-cluster-serviceaccount-{{ .Name }}"
     {{- with .PullSecrets }}
       imagePullSecrets:
       {{range $val := .}}

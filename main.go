@@ -78,7 +78,7 @@ func init() {
 	// initialise core parameters
 	image, ok := os.LookupEnv("IMAGE")
 	if !ok {
-		dtypes.Image = "daskdev/dask:latest"
+		dtypes.Image = "daskdev/dask:2.9.0"
 	} else {
 		dtypes.Image = image
 	}

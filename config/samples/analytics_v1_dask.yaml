@@ -48,7 +48,7 @@ spec:
   jupyter: true
   replicas: 3
   # image: arl:ubuntu18.04
-  # image: daskdev/dask:latest
+  # image: daskdev/dask:2.9.0
   image: piersharding/arl-dask:latest
   jupyterIngress: notebook.dask.local
   schedulerIngress: scheduler.dask.local
