@@ -29,8 +29,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	analyticsv1 "github.com/piersharding/dask-operator/api/v1"
-	dtypes "github.com/piersharding/dask-operator/types"
+	analyticsv1 "gitlab.com/piersharding/dask-operator/api/v1"
+	dtypes "gitlab.com/piersharding/dask-operator/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"

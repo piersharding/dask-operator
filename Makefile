@@ -3,6 +3,7 @@ KUBE_REPORT_NAMESPACE ?= default
 WEBHOOK_SERVICE_NAME = dask-operator-webhook-service
 CERT_DIR = /tmp/k8s-webhook-server/serving-certs
 TEMP_DIRECTORY := $(shell mktemp -d)
+ROOT_DIR:=$(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 # Image URL to use all building/pushing image targets
 IMG ?= piersharding/dask-operator-controller:latest
@@ -20,6 +21,21 @@ GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
+
+# gitlab-runner configuration
+GITLAB_JOB ?= vet ## gitlab-runner Job step to test
+RDEBUG ?= ""
+TIMEOUT = 86400
+EXECUTOR ?= shell
+CI_ENVIRONMENT_SLUG ?= development
+CI_PIPELINE_ID ?= pipeline$(shell tr -c -d '0123456789abcdefghijklmnopqrstuvwxyz' </dev/urandom | dd bs=8 count=1 2>/dev/null;echo)
+CI_JOB_ID ?= job$(shell tr -c -d '0123456789abcdefghijklmnopqrstuvwxyz' </dev/urandom | dd bs=4 count=1 2>/dev/null;echo)
+GITLAB_USER ?= ""
+CI_BUILD_TOKEN ?= ""
+REGISTRY_TOKEN ?= ""
+DOCKER_HOST ?= unix:///var/run/docker.sock
+DOCKER_VOLUMES ?= /var/run/docker.sock:/var/run/docker.sock
+CI_APPLICATION_TAG ?= $(shell git rev-parse --verify --short=8 HEAD)
 
 # PVC name and directory for reports
 REPORT_VOLUME ?= daskjob-report-pvc-app1-simple
@@ -39,9 +55,11 @@ test: generate fmt vet manifests ## run tests
 	rm -rf cover.* cover
 	mkdir -p cover
 	LOG_LEVEL=DEBUG TEST_USE_EXISTING_CLUSTER=$(TEST_USE_EXISTING_CLUSTER) go test ./api/... ./types/... ./utils/... ./models/... ./controllers/... -coverprofile cover.out.tmp -v
-	cat cover.out.tmp | grep -v "XX_generated.deepcopy.go" > cover.out
+	cat cover.out.tmp | grep -v "zz_generated.deepcopy.go" > cover.out
 	go tool cover -html=cover.out -o cover/cover.html
-	rm -f cover.out cover.out.tmp cover.json
+	cp cover.out.tmp cover/cover.out
+	go tool cover -func=cover.out | grep 'total:' | awk '{print $$3}'  | tr -d '%' > cover/total.txt
+	rm -f cover.out cover.out.tmp
 
 # Build manager binary
 manager: generate fmt vet
@@ -165,9 +183,29 @@ manifests: controller-gen ## generate mainfests
 fmt: ## run fmt
 	go fmt ./...
 
-# Run go vet against code
-vet: ## run vet
+# Run go vet lint checking against code
+vet: ## run go vet lint checking against code
 	go vet ./...
+
+cleandir:
+	sudo rm -rf $(ROOT_DIR)/builds
+
+rjob: cleandir ## run code standards check using gitlab-runner
+	if [ -n "$(RDEBUG)" ]; then DEBUG_LEVEL=debug; else DEBUG_LEVEL=warn; fi && \
+	gitlab-runner --log-level $${DEBUG_LEVEL} exec $(EXECUTOR) \
+	--docker-privileged \
+	 --docker-disable-cache=false \
+	--docker-host $(DOCKER_HOST) \
+	--docker-volumes  $(DOCKER_VOLUMES) \
+	--docker-pull-policy always \
+	--timeout $(TIMEOUT) \
+    --env "DOCKER_HOST=$(DOCKER_HOST)" \
+		--env "GITLAB_USER=$(GITLAB_USER)" \
+		--env "REGISTRY_TOKEN=$(REGISTRY_TOKEN)" \
+		--env "CI_BUILD_TOKEN=$(CI_BUILD_TOKEN)" \
+		--env "TRACE=1" \
+		--env "DEBUG=1" \
+	$(GITLAB_JOB) || true
 
 # Generate code
 generate: controller-gen ## Generate code
@@ -199,7 +237,6 @@ CONTROLLER_GEN=$(GOBIN)/controller-gen
 else
 CONTROLLER_GEN=$(shell which controller-gen)
 endif
-
 
 logs: ## show Helm chart POD logs
 	@for i in `kubectl -n $(KUBE_NAMESPACE) get pods -l control-plane=controller-manager -o=name`; \
@@ -247,7 +284,6 @@ reports: ## retrieve report from PVC - use something like 'make reports REPORT_V
 	kubectl cp $(KUBE_REPORT_NAMESPACE)/$(REPORT_VOLUME):/$(REPORTS_DIR) $$(pwd)/$(REPORTS_DIR)
 	kubectl -n $(KUBE_REPORT_NAMESPACE) delete pod $(REPORT_VOLUME) --now=true --wait=true
 
-
 dasklogs: ## show Dask POD logs
 	@for i in `kubectl -n $(KUBE_REPORT_NAMESPACE) get pods -l app.kubernetes.io/name=dask-scheduler -o=name`; \
 	do \
@@ -293,8 +329,6 @@ dasklogs: ## show Dask POD logs
 		echo "---------------------------------------------------"; \
 		echo ""; echo ""; echo ""; \
 	done
-
-
 
 help:  ## show this help.
 	@echo "make targets:"

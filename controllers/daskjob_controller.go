@@ -27,10 +27,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	analyticsv1 "github.com/piersharding/dask-operator/api/v1"
-	"github.com/piersharding/dask-operator/models"
-	dtypes "github.com/piersharding/dask-operator/types"
-	"github.com/piersharding/dask-operator/utils"
+	analyticsv1 "gitlab.com/piersharding/dask-operator/api/v1"
+	"gitlab.com/piersharding/dask-operator/models"
+	dtypes "gitlab.com/piersharding/dask-operator/types"
+	"gitlab.com/piersharding/dask-operator/utils"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"

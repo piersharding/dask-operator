@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	analyticsv1 "github.com/piersharding/dask-operator/api/v1"
-	dtypes "github.com/piersharding/dask-operator/types"
+	analyticsv1 "gitlab.com/piersharding/dask-operator/api/v1"
+	dtypes "gitlab.com/piersharding/dask-operator/types"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"

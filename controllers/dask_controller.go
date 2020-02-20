@@ -30,10 +30,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/go-logr/logr"
-	analyticsv1 "github.com/piersharding/dask-operator/api/v1"
-	"github.com/piersharding/dask-operator/models"
+	analyticsv1 "gitlab.com/piersharding/dask-operator/api/v1"
+	"gitlab.com/piersharding/dask-operator/models"
 
-	dtypes "github.com/piersharding/dask-operator/types"
+	dtypes "gitlab.com/piersharding/dask-operator/types"
 )
 
 var (

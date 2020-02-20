@@ -21,9 +21,9 @@ import (
 	"os"
 
 	"github.com/go-logr/logr"
-	analyticsv1 "github.com/piersharding/dask-operator/api/v1"
-	"github.com/piersharding/dask-operator/controllers"
-	dtypes "github.com/piersharding/dask-operator/types"
+	analyticsv1 "gitlab.com/piersharding/dask-operator/api/v1"
+	"gitlab.com/piersharding/dask-operator/controllers"
+	dtypes "gitlab.com/piersharding/dask-operator/types"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"

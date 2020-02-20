@@ -15,7 +15,7 @@ import (
 
 	"github.com/Masterminds/sprig"
 	"github.com/go-logr/logr"
-	dtypes "github.com/piersharding/dask-operator/types"
+	dtypes "gitlab.com/piersharding/dask-operator/types"
 
 	"k8s.io/helm/pkg/chartutil"
 

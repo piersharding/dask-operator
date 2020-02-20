@@ -1,0 +1,114 @@
+image: golang:1.12.5
+
+variables:
+  REPO_NAME: gitlab.com/piersharding/dask-operator
+
+# the default GOPATH being /go, then you'd need to have your
+# repository in /go/src/gitlab.com/piersharding/dask-operator
+# Thus, making a symbolic link corrects this.
+before_script:
+  - |
+    echo "Starting directory is: $(pwd)"
+  - export GOPATH=${CI_PROJECT_DIR}/.cache
+  - export GO111MODULE=on
+  - env
+  - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
+  - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
+  - cd $GOPATH/src/$REPO_NAME
+  - |
+    echo "##### CI_PROJECT_DIR #####"
+  - ls -latr ${CI_PROJECT_DIR}
+
+stages:
+  - check
+  - build
+  - test
+  - deploy
+  - badges
+
+fmt:
+  stage: check
+  script:
+    - make fmt
+  # artifacts:
+  #   untracked: true
+
+vet:
+  stage: check
+  script:
+    - make vet
+
+compile:
+  stage: build
+  script:
+    - make manager
+    # - go build -race -ldflags "-extldflags '-static'" -o $CI_PROJECT_DIR/mybinary
+  artifacts:
+    paths:
+      - bin/manager
+    expire_in: 1 weeks
+
+test:
+  stage: test
+  script:
+    - curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v2.2.0/kubebuilder_2.2.0_linux_amd64.tar.gz >/tmp/kubebuilder.tar.gz
+    - tar -zxvf /tmp/kubebuilder.tar.gz
+    - test -d /usr/local/kubebuilder || mv kubebuilder_2.2.0_linux_amd64 /usr/local/kubebuilder
+    - export PATH=$PATH:/usr/local/kubebuilder/bin
+    - make test
+  artifacts:
+    paths:
+      - cover
+    expire_in: 4 weeks
+
+build-image:
+  stage: deploy
+  # Official docker image.
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+    - docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" "$CI_REGISTRY_IMAGE:latest"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+    - echo "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" > current_tag.txt
+  artifacts:
+    paths:
+        - current_tag.txt
+  # when: manual
+  only:
+    refs:
+      - master
+
+badges:
+  stage: badges
+  image: python:3
+  tags:
+    - docker
+  script:
+    - echo "Python other dependencies installation"
+  after_script:
+    - ls -latr
+    - pip install anybadge
+    - commits=$(git rev-list --all --count)
+    - anybadge -l commits -v $commits -f commits.svg -c green
+    - coverage=$(cat cover/total.txt)
+    - anybadge --value=$coverage --file=coverage.svg coverage
+    - current_tag=$(cat current_tag.txt)
+    - anybadge --value=$current_tag --label Image --file=current_tag.svg --color=teal
+  artifacts:
+    paths:
+      - commits.svg
+      - coverage.svg
+      - current_tag.svg
+    when: on_success
+    expire_in: 52 weeks
+  dependencies:
+    - test
+    - build-image
+  only:
+    refs:
+      - master

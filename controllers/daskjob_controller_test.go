@@ -25,9 +25,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	analyticsv1 "github.com/piersharding/dask-operator/api/v1"
-	// "github.com/piersharding/dask-operator/models"
-	// dtypes "github.com/piersharding/dask-operator/types"
+	analyticsv1 "gitlab.com/piersharding/dask-operator/api/v1"
+	// "gitlab.com/piersharding/dask-operator/models"
+	// dtypes "gitlab.com/piersharding/dask-operator/types"
 )
 
 // var resource_name = "testdask"

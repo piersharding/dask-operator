@@ -77,7 +77,7 @@ spec:
         type: DirectoryOrCreate
       name: arl
     # - hostPath:
-    #     path: /home/piers/code/go/src/github.com/piersharding/dask-operator/pylibs
+    #     path: /home/piers/code/go/src/gitlab.com/piersharding/dask-operator/pylibs
     #     type: DirectoryOrCreate
     #   name: pylibs
     - name: pylibs

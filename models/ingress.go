@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 
 	"github.com/appscode/go/log"
-	dtypes "github.com/piersharding/dask-operator/types"
-	"github.com/piersharding/dask-operator/utils"
+	dtypes "gitlab.com/piersharding/dask-operator/types"
+	"gitlab.com/piersharding/dask-operator/utils"
 	v1beta1 "k8s.io/api/extensions/v1beta1"
 )
 

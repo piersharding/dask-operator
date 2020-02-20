@@ -1,5 +1,5 @@
 domain: piersharding.com
-repo: github.com/piersharding/dask-operator
+repo: gitlab.com/piersharding/dask-operator
 resources:
 - group: analytics
   kind: Dask

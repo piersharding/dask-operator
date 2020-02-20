@@ -6,7 +6,7 @@ import (
 
 	"github.com/appscode/go/log"
 	"github.com/go-logr/logr"
-	analyticsv1 "github.com/piersharding/dask-operator/api/v1"
+	analyticsv1 "gitlab.com/piersharding/dask-operator/api/v1"
 )
 
 // Image Default Container Image

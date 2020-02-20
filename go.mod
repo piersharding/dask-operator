@@ -1,4 +1,4 @@
-module github.com/piersharding/dask-operator
+module gitlab.com/piersharding/dask-operator
 
 go 1.12
 
@@ -11,7 +11,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.0
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/huandu/xstrings v1.2.0 // indirect
+	github.com/huandu/xstrings v1.3.0 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.6.0
 	github.com/onsi/gomega v1.4.2
