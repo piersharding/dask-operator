@@ -80,7 +80,7 @@ build-image:
     - docker push "$IMG"
     - docker tag "$IMG" "$CI_REGISTRY_IMAGE:latest"
     - docker push "$CI_REGISTRY_IMAGE:latest"
-    - echo "$IMG" > current_tag.txt
+    - echo "$CI_COMMIT_SHORT_SHA (latest)" > current_tag.txt
   artifacts:
     paths:
         - current_tag.txt
@@ -122,7 +122,7 @@ badges:
     - coverage=$(cat cover/total.txt)
     - anybadge --value=$coverage --file=coverage.svg coverage
     - current_tag=$(cat current_tag.txt)
-    - anybadge --value=$current_tag --label Image --file=current_tag.svg --color=teal
+    - anybadge --value="$current_tag" --label ImageTag --file=current_tag.svg --color=teal
   artifacts:
     paths:
       - commits.svg
