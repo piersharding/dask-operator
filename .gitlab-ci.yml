@@ -1,7 +1,11 @@
 image: golang:1.12.5
 
+include:
+  - template: SAST.gitlab-ci.yml
+
 variables:
   REPO_NAME: gitlab.com/piersharding/dask-operator
+  SAST_GOSEC_LEVEL: 2
 
 # the default GOPATH being /go, then you'd need to have your
 # repository in /go/src/gitlab.com/piersharding/dask-operator
@@ -23,6 +27,7 @@ stages:
   - check
   - build
   - test
+  - image
   - deploy
   - badges
 
@@ -62,6 +67,29 @@ test:
     expire_in: 4 weeks
 
 build-image:
+  stage: image
+  # Official docker image.
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - export IMG="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" # was "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+    - docker build --pull -t "$IMG" .
+    - docker push "$IMG"
+    - docker tag "$IMG" "$CI_REGISTRY_IMAGE:latest"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+    - echo "$IMG" > current_tag.txt
+  artifacts:
+    paths:
+        - current_tag.txt
+  # when: manual
+  only:
+    refs:
+      - master
+
+tag-push-latest:
   stage: deploy
   # Official docker image.
   image: docker:latest
@@ -70,15 +98,11 @@ build-image:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
-    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" .
-    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
-    - docker tag "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" "$CI_REGISTRY_IMAGE:latest"
+    - export IMG="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" # was "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
+    - docker pull "$IMG"
+    - docker tag "$IMG" "$CI_REGISTRY_IMAGE:latest"
     - docker push "$CI_REGISTRY_IMAGE:latest"
-    - echo "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG" > current_tag.txt
-  artifacts:
-    paths:
-        - current_tag.txt
-  # when: manual
+  when: manual
   only:
     refs:
       - master
