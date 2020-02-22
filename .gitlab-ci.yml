@@ -28,7 +28,7 @@ stages:
   - build
   - test
   - image
-  - deploy
+  - push
   - badges
 
 fmt:
@@ -73,10 +73,12 @@ build-image:
   services:
     - docker:dind
   before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - echo -n "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    # - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - export IMG="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" # was "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
-    - docker build --pull -t "$IMG" .
+    - docker pull $CI_REGISTRY_IMAGE:latest || true
+    - docker build --pull --cache-from $CI_REGISTRY_IMAGE:latest --tag "$IMG" .
     - docker push "$IMG"
     - docker tag "$IMG" "$CI_REGISTRY_IMAGE:latest"
     - docker push "$CI_REGISTRY_IMAGE:latest"
@@ -84,32 +86,54 @@ build-image:
   artifacts:
     paths:
         - current_tag.txt
-  # when: manual
   only:
     refs:
       - master
 
 tag-push-latest:
-  stage: deploy
+  stage: push
   # Official docker image.
   image: docker:latest
+  variables:
+    # We do not need GitLab to clone the source code.
+    GIT_STRATEGY: none  
   services:
     - docker:dind
   before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - echo -n "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
   script:
     - export IMG="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" # was "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
     - docker pull "$IMG"
     - docker tag "$IMG" "$CI_REGISTRY_IMAGE:latest"
     - docker push "$CI_REGISTRY_IMAGE:latest"
-  when: manual
+  # when: manual
   only:
     refs:
       - master
 
+push-tag:
+  stage: push
+  variables:
+    GIT_STRATEGY: none
+  only:
+    # We want this job to be run on tags only.
+    - tags
+  services:
+    - docker:dind
+  before_script:
+    - echo -n "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+  script:
+    - export IMG="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+    - export TAGIMG="$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME"
+    - docker pull $IMG
+    - docker tag $IMG $TAGIMG
+    - docker push $TAGIMG
+
 badges:
   stage: badges
   image: python:3
+  variables:
+    GIT_STRATEGY: none
   tags:
     - docker
   script:
