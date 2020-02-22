@@ -14,7 +14,6 @@ before_script:
   - |
     echo "Starting directory is: $(pwd)"
   - export GOPATH=${CI_PROJECT_DIR}/.cache
-  - export GO111MODULE=on
   - env
   - mkdir -p $GOPATH/src/$(dirname $REPO_NAME)
   - ln -svf $CI_PROJECT_DIR $GOPATH/src/$REPO_NAME
@@ -30,20 +29,30 @@ stages:
   - image
   - push
   - badges
+  - pages
+
+.build_env: &buid_env
+  before_script:
+    - |
+      echo "Starting directory (buid_env) is: $(pwd)"
+      export GOPATH=${CI_PROJECT_DIR}/.cache
+      export GO111MODULE=on
+    - env
 
 fmt:
+  <<: *buid_env
   stage: check
   script:
     - make fmt
-  # artifacts:
-  #   untracked: true
 
 vet:
+  <<: *buid_env
   stage: check
   script:
     - make vet
 
 compile:
+  <<: *buid_env
   stage: build
   script:
     - make manager
@@ -54,6 +63,7 @@ compile:
     expire_in: 1 weeks
 
 test:
+  <<: *buid_env
   stage: test
   script:
     - curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v2.2.0/kubebuilder_2.2.0_linux_amd64.tar.gz >/tmp/kubebuilder.tar.gz
@@ -153,10 +163,35 @@ badges:
       - coverage.svg
       - current_tag.svg
     when: on_success
-    expire_in: 52 weeks
+    expire_in: 30 days
   dependencies:
     - test
     - build-image
   only:
     refs:
       - master
+
+pages:
+  stage: pages
+  image: busybox:latest
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - echo "No other dependencies installation"
+  after_script:
+   - ls -la
+   - mkdir .public
+   - cp cover/cover.html .public
+   - cp -r commits.svg coverage.svg current_tag.svg .public
+   - mv .public public
+  only:
+    refs:
+      - master
+  artifacts:
+    paths:
+      - public
+    expire_in: 52 weeks
+  dependencies:
+    - badges
+  tags:
+    - docker
