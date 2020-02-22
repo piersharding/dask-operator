@@ -1,11 +1,47 @@
-image: golang:1.12.5
+image: golang:1.13.8
 
 include:
   - template: SAST.gitlab-ci.yml
+  - template: License-Scanning.gitlab-ci.yml
+  - template: Container-Scanning.gitlab-ci.yml
+  - template: Dependency-Scanning.gitlab-ci.yml
 
+# custom selection of sast steps from:
+# https://gitlab.com/gitlab-org/gitlab-foss/-/blob/12-8-stable/lib/gitlab/ci/templates/Security/SAST.gitlab-ci.yml
 variables:
   REPO_NAME: gitlab.com/piersharding/dask-operator
+  SAST_ANALYZER_IMAGE_PREFIX: "registry.gitlab.com/gitlab-org/security-products/analyzers"
+  # # dropped unwanted analyzers
+  # # SAST_DEFAULT_ANALYZERS: "bandit, brakeman, gosec, spotbugs, flawfinder, phpcs-security-audit, security-code-scan, nodejs-scan, eslint, tslint, secrets, sobelow, pmd-apex, kubesec"
+  SAST_DEFAULT_ANALYZERS: "gosec, spotbugs, flawfinder, security-code-scan, secrets"
+  SAST_ANALYZER_IMAGE_TAG: 2
   SAST_GOSEC_LEVEL: 2
+  # SCAN_KUBERNETES_MANIFESTS: "true"
+
+sast:
+  variables:
+    CI_DEBUG_TRACE: "true"
+    SAST_ANALYZER_IMAGE_PREFIX: "registry.gitlab.com/gitlab-org/security-products/analyzers"
+    SAST_DEFAULT_ANALYZERS: "gosec, spotbugs, flawfinder, security-code-scan, secrets"
+    SAST_ANALYZER_IMAGE_TAG: 2
+    SAST_GOSEC_LEVEL: 2
+    SCAN_KUBERNETES_MANIFESTS: "false"
+  script:
+    - export SAST_VERSION=${SP_VERSION:-$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')}
+    - |
+      if ! docker info &>/dev/null; then
+        if [ -z "$DOCKER_HOST" -a "$KUBERNETES_PORT" ]; then
+          export DOCKER_HOST='tcp://localhost:2375'
+        fi
+      fi
+    - |
+      printenv
+      ENVS=`printenv | grep -vE '^(DOCKER_|CI|GITLAB_|FF_|HOME|PWD|OLDPWD|PATH|SHLVL|HOSTNAME)' | sed -n '/^[^\t]/s/=.*//p' | sed '/^$/d' | sed 's/^/-e /g' | tr '\n' ' '`
+      docker run "$ENVS" \
+        --volume "$PWD:/code" \
+        --volume /var/run/docker.sock:/var/run/docker.sock \
+        "registry.gitlab.com/gitlab-org/security-products/sast:$SAST_VERSION" /app/bin/run /code
+
 
 # the default GOPATH being /go, then you'd need to have your
 # repository in /go/src/gitlab.com/piersharding/dask-operator
@@ -26,7 +62,6 @@ stages:
   - check
   - build
   - test
-  - image
   - push
   - badges
   - pages
@@ -62,6 +97,7 @@ compile:
       - bin/manager
     expire_in: 1 weeks
 
+
 test:
   <<: *buid_env
   stage: test
@@ -77,7 +113,7 @@ test:
     expire_in: 4 weeks
 
 build-image:
-  stage: image
+  stage: build
   # Official docker image.
   image: docker:latest
   services:
@@ -90,9 +126,10 @@ build-image:
     - docker pull $CI_REGISTRY_IMAGE:latest || true
     - docker build --pull --cache-from $CI_REGISTRY_IMAGE:latest --tag "$IMG" .
     - docker push "$IMG"
-    - docker tag "$IMG" "$CI_REGISTRY_IMAGE:latest"
-    - docker push "$CI_REGISTRY_IMAGE:latest"
     - echo "$CI_COMMIT_SHORT_SHA (latest)" > current_tag.txt
+    - export IMAGE_TAG="$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA"
+    - docker tag "$IMG" "$IMAGE_TAG"
+    - docker push "$IMAGE_TAG"
   artifacts:
     paths:
         - current_tag.txt
@@ -142,8 +179,6 @@ push-tag:
 badges:
   stage: badges
   image: python:3
-  variables:
-    GIT_STRATEGY: none
   tags:
     - docker
   script:
@@ -181,8 +216,9 @@ pages:
   after_script:
    - ls -la
    - mkdir .public
-   - cp cover/cover.html .public
-   - cp -r commits.svg coverage.svg current_tag.svg .public
+   - touch .public/index.html
+   - cp cover/cover.html .public || true
+   - cp -r commits.svg coverage.svg current_tag.svg .public || true
    - mv .public public
   only:
     refs:
