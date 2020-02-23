@@ -24,3 +24,7 @@ require (
 )
 
 replace github.com/go-check/check v1.0.0-20180628173108-788fd7840127 => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
+
+replace gopkg.in/yaml.v2 v2.2.1 => gopkg.in/yaml.v2 v2.2.3
+
+replace gopkg.in/yaml.v2 v2.2.2 => gopkg.in/yaml.v2 v2.2.3
