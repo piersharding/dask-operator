@@ -160,12 +160,12 @@ namespace: ## create the kubernetes namespace
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deploy: manifests ## deploy all
 	cd config/manager && kustomize edit set image controller=${IMG}
-	kustomize build config/withoutadmissioncontrol | kubectl apply -f -
+	kustomize build config/withoutadmissioncontrol | kubectl create -f -
 
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 deployac: namespace manifests getcert secret ## deploy all with Admission Control Hook
 	cd config/manager && kustomize edit set image controller=${IMG}
-	kustomize build config/withadmissioncontrol | kubectl apply -f -
+	kustomize build config/withadmissioncontrol | kubectl create -f -
 
 delete: ## delete deployment
 	cd config/manager && kustomize edit set image controller=${IMG}

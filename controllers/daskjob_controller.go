@@ -52,9 +52,9 @@ type DaskJobReconciler struct {
 
 // +kubebuilder:rbac:groups=analytics.piersharding.com,resources=daskjobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=analytics.piersharding.com,resources=daskjobs/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=apps,resources=jobs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=apps,resources=jobs/status,verbs=get
-// +kubebuilder:rbac:groups=core,resources=configmaps;secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=batch,resources=jobs/status,verbs=get
+// +kubebuilder:rbac:groups=core,resources=configmaps;secrets;persistentvolumeclaims,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile main reconcile loop
 func (r *DaskJobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {

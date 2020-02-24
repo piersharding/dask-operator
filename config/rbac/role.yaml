@@ -65,7 +65,7 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - apps
+  - batch
   resources:
   - jobs
   verbs:
@@ -77,7 +77,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - apps
+  - batch
   resources:
   - jobs/status
   verbs:
@@ -86,6 +86,7 @@ rules:
   - ""
   resources:
   - configmaps
+  - persistentvolumeclaims
   - secrets
   verbs:
   - create
@@ -100,6 +101,7 @@ rules:
   resources:
   - configmaps
   - secrets
+  - serviceaccounts
   - services
   verbs:
   - create
@@ -133,3 +135,15 @@ rules:
   - ingresses/status
   verbs:
   - get
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
