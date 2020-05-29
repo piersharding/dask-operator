@@ -12,7 +12,7 @@ IMG ?= piersharding/dask-operator-controller:latest
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 # Controller runtime arguments
-CONTROLLER_ARGS ?= 
+CONTROLLER_ARGS ?=
 TEST_USE_EXISTING_CLUSTER ?= false
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
@@ -230,7 +230,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.2.2 ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.3.0 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen

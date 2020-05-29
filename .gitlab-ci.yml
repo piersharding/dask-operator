@@ -10,7 +10,7 @@ include:
 # https://gitlab.com/gitlab-org/gitlab-foss/-/blob/12-8-stable/lib/gitlab/ci/templates/Security/SAST.gitlab-ci.yml
 variables:
   REPO_NAME: gitlab.com/piersharding/dask-operator
-
+  SP_VERSION: 2
 
 # the default GOPATH being /go, then you'd need to have your
 # repository in /go/src/gitlab.com/piersharding/dask-operator
@@ -34,8 +34,6 @@ stages:
   - push
   - badges
   - pages
-
-
 
 sast:
   stage: test
@@ -99,7 +97,6 @@ sast:
   script:
     - /analyzer run
 
-
 kubesec-sast:
   extends: .sast-analyzer
   image:
@@ -128,9 +125,6 @@ secrets-sast:
     variables:
       - $GITLAB_FEATURES =~ /\bsast\b/ &&
           $SAST_DEFAULT_ANALYZERS =~ /secrets/
-
-
-
 
 .build_env: &buid_env
   before_script:
@@ -163,14 +157,13 @@ compile:
       - bin/manager
     expire_in: 1 weeks
 
-
 test:
   <<: *buid_env
   stage: test
   script:
-    - curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v2.2.0/kubebuilder_2.2.0_linux_amd64.tar.gz >/tmp/kubebuilder.tar.gz
+    - curl -L https://github.com/kubernetes-sigs/kubebuilder/releases/download/v2.3.1/kubebuilder_2.3.1_linux_amd64.tar.gz >/tmp/kubebuilder.tar.gz
     - tar -zxvf /tmp/kubebuilder.tar.gz
-    - test -d /usr/local/kubebuilder || mv kubebuilder_2.2.0_linux_amd64 /usr/local/kubebuilder
+    - test -d /usr/local/kubebuilder || mv kubebuilder_2.3.1_linux_amd64 /usr/local/kubebuilder
     - export PATH=$PATH:/usr/local/kubebuilder/bin
     - make test
   artifacts:
@@ -209,7 +202,7 @@ tag-push-latest:
   image: docker:latest
   variables:
     # We do not need GitLab to clone the source code.
-    GIT_STRATEGY: none  
+    GIT_STRATEGY: none
   services:
     - docker:dind
   before_script:
