@@ -156,11 +156,6 @@ compile:
     paths:
       - bin/manager
     expire_in: 1 weeks
-  cache:
-    paths:
-    - bin/manager
-  tags:
-    - piers
 
 test:
   <<: *buid_env
