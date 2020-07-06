@@ -159,6 +159,8 @@ compile:
   cache:
     paths:
     - bin/manager
+  tags:
+    - piers
 
 test:
   <<: *buid_env
