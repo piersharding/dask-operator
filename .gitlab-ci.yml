@@ -156,6 +156,9 @@ compile:
     paths:
       - bin/manager
     expire_in: 1 weeks
+  cache:
+    paths:
+    - bin/manager
 
 test:
   <<: *buid_env
