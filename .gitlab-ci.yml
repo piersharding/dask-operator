@@ -174,21 +174,27 @@ test:
 build-image:
   stage: build
   # Official docker image.
-  image: docker:latest
-  services:
-    - docker:dind
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  # image: docker:latest
+  # services:
+  #   - docker:dind
   before_script:
-    - echo -n "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    # - echo -n "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     # - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
   script:
     - export IMG="$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" # was "$CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG"
-    - docker pull $CI_REGISTRY_IMAGE:latest || true
-    - docker build --pull --cache-from $CI_REGISTRY_IMAGE:latest --tag "$IMG" .
-    - docker push "$IMG"
-    - echo "$CI_COMMIT_SHORT_SHA (latest)" > current_tag.txt
+    # - docker pull $CI_REGISTRY_IMAGE:latest || true
+    # - docker build --pull --cache-from $CI_REGISTRY_IMAGE:latest --tag "$IMG" .
+    # - docker push "$IMG"
     - export IMAGE_TAG="$CI_REGISTRY_IMAGE/$CI_COMMIT_REF_SLUG:$CI_COMMIT_SHA"
-    - docker tag "$IMG" "$IMAGE_TAG"
-    - docker push "$IMAGE_TAG"
+    # - docker tag "$IMG" "$IMAGE_TAG"
+    # - docker push "$IMAGE_TAG"
+    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination "$IMG" --destination "$IMAGE_TAG"
+    - echo "$CI_COMMIT_SHORT_SHA (latest)" > current_tag.txt
   artifacts:
     paths:
         - current_tag.txt
