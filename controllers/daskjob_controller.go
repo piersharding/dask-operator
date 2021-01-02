@@ -37,7 +37,7 @@ import (
 )
 
 var (
-	jobOwnerKey     = ".metadata.controller"
+	jobOwnerKey     = ".metadata.daskjobcontroller"
 	daskjobApiGVStr = analyticsv1.GroupVersion.String()
 )
 

@@ -37,7 +37,7 @@ import (
 )
 
 var (
-	daskOwnerKey = ".metadata.controller"
+	daskOwnerKey = ".metadata.daskcontroller"
 	daskApiGVStr = analyticsv1.GroupVersion.String()
 )
 

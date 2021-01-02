@@ -1,7 +1,7 @@
 image: golang:1.13.8
 
 include:
-  # - template: SAST.gitlab-ci.yml
+  - template: SAST.gitlab-ci.yml
   - template: License-Scanning.gitlab-ci.yml
   - template: Container-Scanning.gitlab-ci.yml
   - template: Dependency-Scanning.gitlab-ci.yml
@@ -9,8 +9,15 @@ include:
 # custom selection of sast steps from:
 # https://gitlab.com/gitlab-org/gitlab-foss/-/blob/12-8-stable/lib/gitlab/ci/templates/Security/SAST.gitlab-ci.yml
 variables:
-  REPO_NAME: gitlab.com/piersharding/dask-operator
-  SP_VERSION: 2
+  # REPO_NAME: gitlab.com/piersharding/dask-operator
+  # SP_VERSION: 2
+  # SAST_DEFAULT_ANALYZERS: "bandit, brakeman, gosec, spotbugs, flawfinder, phpcs-security-audit, security-code-scan, nodejs-scan, eslint, sobelow, pmd-apex, kubesec, mobsf"
+  SAST_DEFAULT_ANALYZERS: "bandit, brakeman, gosec, security-code-scan, eslint, kubesec"
+  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp"
+  SAST_ANALYZER_IMAGE_TAG: 2
+  SCAN_KUBERNETES_MANIFESTS: "false"
+  SECURE_LOG_LEVEL: error
+
 
 # the default GOPATH being /go, then you'd need to have your
 # repository in /go/src/gitlab.com/piersharding/dask-operator
@@ -35,96 +42,96 @@ stages:
   - badges
   - pages
 
-sast:
-  stage: test
-  allow_failure: true
-  artifacts:
-    reports:
-      sast: gl-sast-report.json
-  only:
-    refs:
-      - branches
-    variables:
-      - $GITLAB_FEATURES =~ /\bsast\b/
-  image: docker:stable
-  variables:
-    DOCKER_DRIVER: overlay2
-    DOCKER_TLS_CERTDIR: ""
-    SAST_ANALYZER_IMAGE_PREFIX: "registry.gitlab.com/gitlab-org/security-products/analyzers"
-    # # dropped unwanted analyzers
-    # # SAST_DEFAULT_ANALYZERS: "bandit, brakeman, gosec, spotbugs, flawfinder, phpcs-security-audit, security-code-scan, nodejs-scan, eslint, tslint, secrets, sobelow, pmd-apex, kubesec"
-    SAST_DEFAULT_ANALYZERS: "gosec, spotbugs, flawfinder, security-code-scan, secrets"
-    SAST_ANALYZER_IMAGE_TAG: 2
-    SAST_CONFIDENCE_LEVEL: 3
-    SCAN_KUBERNETES_MANIFESTS: "false"
-    SAST_DISABLE_DIND: "false"
-  services:
-    - docker:stable-dind
-  script:
-    - export SAST_VERSION=${SP_VERSION:-$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')}
-    - |
-      if ! docker info &>/dev/null; then
-        if [ -z "$DOCKER_HOST" -a "$KUBERNETES_PORT" ]; then
-          export DOCKER_HOST='tcp://localhost:2375'
-        fi
-      fi
-    - |
-      ENVS=`printenv | grep -vE '^(DOCKER_|CI|GITLAB_|FF_|HOME|PWD|OLDPWD|PATH|SHLVL|HOSTNAME)' | sed -e 's/\=/\=\"/p' | sed '/^$/d' | sed 's/^/--env /g' | sed 's/$/\"/g'| sort | uniq  | tr '\n' ' '`
-      docker run --env SAST_CONFIDENCE_LEVEL="${SAST_CONFIDENCE_LEVEL:-3}" \
-                 --env SAST_DEFAULT_ANALYZERS="${SAST_DEFAULT_ANALYZERS}" \
-                 --env SAST_ANALYZER_IMAGE_PREFIX="${SAST_ANALYZER_IMAGE_PREFIX}" \
-                 --env SAST_ANALYZER_IMAGE_TAG="${SAST_ANALYZER_IMAGE_TAG}" \
-                 --env SCAN_KUBERNETES_MANIFESTS="${SCAN_KUBERNETES_MANIFESTS}" \
-                 --env SAST_DISABLE_DIND="${SAST_DISABLE_DIND}" \
-                 --env GOPATH="${GOPATH}" \
-                 --env GOBIN="${GOBIN}" \
-        --volume "$PWD:/code" \
-        --volume /var/run/docker.sock:/var/run/docker.sock \
-        "registry.gitlab.com/gitlab-org/security-products/sast:$SAST_VERSION" /app/bin/run /code
+# sast:
+#   stage: test
+#   allow_failure: true
+#   artifacts:
+#     reports:
+#       sast: gl-sast-report.json
+#   only:
+#     refs:
+#       - branches
+#     variables:
+#       - $GITLAB_FEATURES =~ /\bsast\b/
+#   image: docker:stable
+#   variables:
+#     DOCKER_DRIVER: overlay2
+#     DOCKER_TLS_CERTDIR: ""
+#     SAST_ANALYZER_IMAGE_PREFIX: "registry.gitlab.com/gitlab-org/security-products/analyzers"
+#     # # dropped unwanted analyzers
+#     # # SAST_DEFAULT_ANALYZERS: "bandit, brakeman, gosec, spotbugs, flawfinder, phpcs-security-audit, security-code-scan, nodejs-scan, eslint, tslint, secrets, sobelow, pmd-apex, kubesec"
+#     SAST_DEFAULT_ANALYZERS: "gosec, spotbugs, flawfinder, security-code-scan, secrets"
+#     SAST_ANALYZER_IMAGE_TAG: 2
+#     SAST_CONFIDENCE_LEVEL: 3
+#     SCAN_KUBERNETES_MANIFESTS: "false"
+#     SAST_DISABLE_DIND: "false"
+#   services:
+#     - docker:stable-dind
+#   script:
+#     - export SAST_VERSION=${SP_VERSION:-$(echo "$CI_SERVER_VERSION" | sed 's/^\([0-9]*\)\.\([0-9]*\).*/\1-\2-stable/')}
+#     - |
+#       if ! docker info &>/dev/null; then
+#         if [ -z "$DOCKER_HOST" -a "$KUBERNETES_PORT" ]; then
+#           export DOCKER_HOST='tcp://localhost:2375'
+#         fi
+#       fi
+#     - |
+#       ENVS=`printenv | grep -vE '^(DOCKER_|CI|GITLAB_|FF_|HOME|PWD|OLDPWD|PATH|SHLVL|HOSTNAME)' | sed -e 's/\=/\=\"/p' | sed '/^$/d' | sed 's/^/--env /g' | sed 's/$/\"/g'| sort | uniq  | tr '\n' ' '`
+#       docker run --env SAST_CONFIDENCE_LEVEL="${SAST_CONFIDENCE_LEVEL:-3}" \
+#                  --env SAST_DEFAULT_ANALYZERS="${SAST_DEFAULT_ANALYZERS}" \
+#                  --env SAST_ANALYZER_IMAGE_PREFIX="${SAST_ANALYZER_IMAGE_PREFIX}" \
+#                  --env SAST_ANALYZER_IMAGE_TAG="${SAST_ANALYZER_IMAGE_TAG}" \
+#                  --env SCAN_KUBERNETES_MANIFESTS="${SCAN_KUBERNETES_MANIFESTS}" \
+#                  --env SAST_DISABLE_DIND="${SAST_DISABLE_DIND}" \
+#                  --env GOPATH="${GOPATH}" \
+#                  --env GOBIN="${GOBIN}" \
+#         --volume "$PWD:/code" \
+#         --volume /var/run/docker.sock:/var/run/docker.sock \
+#         "registry.gitlab.com/gitlab-org/security-products/sast:$SAST_VERSION" /app/bin/run /code
 
-  except:
-    variables:
-      - $SAST_DISABLED
-      - $SAST_DISABLE_DIND == 'true'
+#   except:
+#     variables:
+#       - $SAST_DISABLED
+#       - $SAST_DISABLE_DIND == 'true'
 
-.sast-analyzer:
-  extends: sast
-  services: []
-  except:
-    variables:
-      - $SAST_DISABLED
-      - $SAST_DISABLE_DIND == 'false'
-  script:
-    - /analyzer run
+# .sast-analyzer:
+#   extends: sast
+#   services: []
+#   except:
+#     variables:
+#       - $SAST_DISABLED
+#       - $SAST_DISABLE_DIND == 'false'
+#   script:
+#     - /analyzer run
 
-kubesec-sast:
-  extends: .sast-analyzer
-  image:
-    name: "$SAST_ANALYZER_IMAGE_PREFIX/kubesec:$SAST_ANALYZER_IMAGE_TAG"
-  only:
-    variables:
-      - $GITLAB_FEATURES =~ /\bsast\b/ &&
-          $SAST_DEFAULT_ANALYZERS =~ /kubesec/ &&
-          $SCAN_KUBERNETES_MANIFESTS == 'true'
+# kubesec-sast:
+#   extends: .sast-analyzer
+#   image:
+#     name: "$SAST_ANALYZER_IMAGE_PREFIX/kubesec:$SAST_ANALYZER_IMAGE_TAG"
+#   only:
+#     variables:
+#       - $GITLAB_FEATURES =~ /\bsast\b/ &&
+#           $SAST_DEFAULT_ANALYZERS =~ /kubesec/ &&
+#           $SCAN_KUBERNETES_MANIFESTS == 'true'
 
-gosec-sast:
-  extends: .sast-analyzer
-  image:
-    name: "$SAST_ANALYZER_IMAGE_PREFIX/gosec:$SAST_ANALYZER_IMAGE_TAG"
-  only:
-    variables:
-      - $GITLAB_FEATURES =~ /\bsast\b/ &&
-          $SAST_DEFAULT_ANALYZERS =~ /gosec/ &&
-          $CI_PROJECT_REPOSITORY_LANGUAGES =~ /\bgo\b/
+# gosec-sast:
+#   extends: .sast-analyzer
+#   image:
+#     name: "$SAST_ANALYZER_IMAGE_PREFIX/gosec:$SAST_ANALYZER_IMAGE_TAG"
+#   only:
+#     variables:
+#       - $GITLAB_FEATURES =~ /\bsast\b/ &&
+#           $SAST_DEFAULT_ANALYZERS =~ /gosec/ &&
+#           $CI_PROJECT_REPOSITORY_LANGUAGES =~ /\bgo\b/
 
-secrets-sast:
-  extends: .sast-analyzer
-  image:
-    name: "$SAST_ANALYZER_IMAGE_PREFIX/secrets:$SAST_ANALYZER_IMAGE_TAG"
-  only:
-    variables:
-      - $GITLAB_FEATURES =~ /\bsast\b/ &&
-          $SAST_DEFAULT_ANALYZERS =~ /secrets/
+# secrets-sast:
+#   extends: .sast-analyzer
+#   image:
+#     name: "$SAST_ANALYZER_IMAGE_PREFIX/secrets:$SAST_ANALYZER_IMAGE_TAG"
+#   only:
+#     variables:
+#       - $GITLAB_FEATURES =~ /\bsast\b/ &&
+#           $SAST_DEFAULT_ANALYZERS =~ /secrets/
 
 .build_env: &buid_env
   before_script:
