@@ -6,7 +6,7 @@ include:
   - template: Security/Dependency-Scanning.gitlab-ci.yml
   - template: Security/License-Scanning.gitlab-ci.yml
   - template: Security/SAST.gitlab-ci.yml
-  - template: Security/DAST.gitlab-ci.yml
+  # - template: Security/DAST.gitlab-ci.yml
   - template: Security/Secret-Detection.gitlab-ci.yml
 
 # custom selection of sast steps from:
@@ -42,6 +42,7 @@ stages:
   - build
   - test
   - push
+  # - dast
   - badges
   - pages
 
