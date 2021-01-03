@@ -20,8 +20,8 @@ variables:
   SAST_ANALYZER_IMAGE_TAG: 2
   SCAN_KUBERNETES_MANIFESTS: "true"
   SAST_DISABLE_DIND: "true"
-  SAST_BRAKEMAN_LEVEL: 1
-  SECURE_LOG_LEVEL: error
+  # SAST_BRAKEMAN_LEVEL: 1
+  SECURE_LOG_LEVEL: debug
 
 
 # the default GOPATH being /go, then you'd need to have your
