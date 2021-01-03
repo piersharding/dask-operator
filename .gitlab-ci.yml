@@ -1,10 +1,13 @@
 image: golang:1.13.8
 
 include:
-  - template: SAST.gitlab-ci.yml
   - template: License-Scanning.gitlab-ci.yml
   - template: Container-Scanning.gitlab-ci.yml
-  - template: Dependency-Scanning.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+  - template: Security/License-Scanning.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/DAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
 
 # custom selection of sast steps from:
 # https://gitlab.com/gitlab-org/gitlab-foss/-/blob/12-8-stable/lib/gitlab/ci/templates/Security/SAST.gitlab-ci.yml
@@ -12,10 +15,10 @@ variables:
   # REPO_NAME: gitlab.com/piersharding/dask-operator
   # SP_VERSION: 2
   # SAST_DEFAULT_ANALYZERS: "bandit, brakeman, gosec, spotbugs, flawfinder, phpcs-security-audit, security-code-scan, nodejs-scan, eslint, sobelow, pmd-apex, kubesec, mobsf"
-  SAST_DEFAULT_ANALYZERS: "bandit, brakeman, gosec, security-code-scan, eslint, kubesec"
-  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp"
+  SAST_DEFAULT_ANALYZERS: "bandit, gosec, eslint, kubesec"
+  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, _tmp, .vscode, cover, hack"
   SAST_ANALYZER_IMAGE_TAG: 2
-  SCAN_KUBERNETES_MANIFESTS: "false"
+  SCAN_KUBERNETES_MANIFESTS: "true"
   SECURE_LOG_LEVEL: error
 
 
