@@ -19,6 +19,8 @@ variables:
   SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, _tmp, .vscode, cover, hack"
   SAST_ANALYZER_IMAGE_TAG: 2
   SCAN_KUBERNETES_MANIFESTS: "true"
+  SAST_DISABLE_DIND: "true"
+  SAST_BRAKEMAN_LEVEL: 1
   SECURE_LOG_LEVEL: error
 
 
