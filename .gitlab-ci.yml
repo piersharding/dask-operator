@@ -123,7 +123,7 @@ kubesec-sast:
     # - /analyzer analyze --helm-charts-path ${KUBESEC_HELM_CHARTS_PATH}  ${KUBESEC_HELM_CHARTS_PATH} > gl-sast-report.json
     - CI_PROJECT_DIR=$CI_PROJECT_DIR/charts /analyzer run --helm-charts-path ${KUBESEC_HELM_CHARTS_PATH}
     - ls -latr $CI_PROJECT_DIR/charts
-    -ls -latr $CI_PROJECT_DIR
+    - ls -latr $CI_PROJECT_DIR
   artifacts:
     reports:
       sast: gl-sast-report.json
