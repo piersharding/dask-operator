@@ -119,6 +119,11 @@ kubesec-sast:
     - |
       echo "##### KUBESEC_HELM_CHARTS_PATH #####"
     - ls -latr ${KUBESEC_HELM_CHARTS_PATH}
+  script:
+    - /analyzer search ${KUBESEC_HELM_CHARTS_PATH}
+  artifacts:
+    reports:
+      sast: gl-sast-report.json
 
 # kubesec-sast:
 #   extends: .sast-analyzer
