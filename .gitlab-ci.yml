@@ -16,7 +16,7 @@ variables:
   # SP_VERSION: 2
   # SAST_DEFAULT_ANALYZERS: "bandit, brakeman, gosec, spotbugs, flawfinder, phpcs-security-audit, security-code-scan, nodejs-scan, eslint, sobelow, pmd-apex, kubesec, mobsf"
   SAST_DEFAULT_ANALYZERS: "bandit, gosec, eslint, kubesec"
-  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, _tmp, .vscode, cover, hack"
+  SAST_EXCLUDED_PATHS: "spec, test, tests, tmp, _tmp, .vscode, cover, hack, config"
   SAST_ANALYZER_IMAGE_TAG: 2
   SCAN_KUBERNETES_MANIFESTS: "true"
   SAST_DISABLE_DIND: "true"
