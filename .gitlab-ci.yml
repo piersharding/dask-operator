@@ -113,7 +113,7 @@ stages:
 
 kubesec-sast:
   variables:
-    KUBESEC_HELM_CHARTS_PATH: $CI_PROJECT_DIR/charts/
+    KUBESEC_HELM_CHARTS_PATH: $CI_PROJECT_DIR/charts/*
   before_script:
     - |
       echo "##### KUBESEC_HELM_CHARTS_PATH #####"
