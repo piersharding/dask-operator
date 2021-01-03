@@ -110,6 +110,15 @@ stages:
 #   script:
 #     - /analyzer run
 
+
+kubesec-sast:
+  variables:
+    KUBESEC_HELM_CHARTS_PATH: $CI_PROJECT_DIR/charts/
+  before_script:
+    - |
+      echo "##### KUBESEC_HELM_CHARTS_PATH #####"
+    - ls -latr ${KUBESEC_HELM_CHARTS_PATH}
+
 # kubesec-sast:
 #   extends: .sast-analyzer
 #   image:
